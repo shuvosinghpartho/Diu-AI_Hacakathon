@@ -1,0 +1,27 @@
+#!/bin/bash
+
+if [ ! -f .app_pid ]; then
+    echo "⚠️ No running instance found (could not find .app_pid file)."
+    exit 1
+fi
+
+PID=$(cat .app_pid)
+
+# Check if process is actually running
+if ps -p $PID > /dev/null; then
+    echo "🛑 Stopping VisionPay Terminal (PID: $PID)..."
+    kill $PID
+    sleep 1
+    
+    # Force kill if still running
+    if ps -p $PID > /dev/null; then
+        kill -9 $PID
+    fi
+    
+    echo "✅ App stopped successfully."
+else
+    echo "⚠️ Process $PID is not running anymore."
+fi
+
+# Clean up PID file
+rm .app_pid

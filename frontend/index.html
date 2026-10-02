@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="bn" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VisionPay | AI Terminal</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Outfit', 'Hind Siliguri', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              400: '#22d3ee',
+              500: '#06b6d4',
+              600: '#0891b2',
+            },
+            dark: {
+              900: '#0f172a',
+              800: '#1e293b',
+              700: '#334155',
+            }
+          },
+          animation: {
+            'blob': 'blob 7s infinite',
+            'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+          },
+          keyframes: {
+            blob: {
+              '0%': { transform: 'translate(0px, 0px) scale(1)' },
+              '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
+              '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
+              '100%': { transform: 'translate(0px, 0px) scale(1)' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    
+    /* Glassmorphism utility */
+    .glass {
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .glass-active {
+      background: rgba(30, 41, 59, 0.9);
+      border-color: rgba(34, 211, 238, 0.3);
+      box-shadow: 0 0 15px rgba(34, 211, 238, 0.1);
+    }
+    
+    .scanning-line {
+      position: absolute;
+      width: 100%;
+      height: 2px;
+      background: #22d3ee;
+      box-shadow: 0 0 10px #22d3ee, 0 0 20px #22d3ee;
+      animation: scan 2s linear infinite;
+      display: none;
+    }
+    
+    .scanning .scanning-line { display: block; }
+    
+    @keyframes scan {
+      0% { top: 0; }
+      50% { top: 100%; }
+      100% { top: 0; }
+    }
+  </style>
+</head>
+<body class="bg-dark-900 text-gray-200 min-h-screen relative overflow-hidden font-sans selection:bg-brand-500 selection:text-white">
+
+  <!-- Global Premium Loading Overlay -->
+  <div id="globalLoader" class="fixed inset-0 z-[100] bg-dark-900/90 backdrop-blur-2xl flex flex-col items-center justify-center opacity-0 pointer-events-none transition-opacity duration-500">
+    <div class="relative flex items-center justify-center">
+      <!-- Ambient Glow -->
+      <div class="absolute w-64 h-64 bg-brand-500 rounded-full mix-blend-screen filter blur-[80px] animate-pulse"></div>
+      <!-- Outer Ring -->
+      <div class="w-40 h-40 border-[4px] border-white/5 border-t-brand-400 rounded-full animate-spin absolute"></div>
+      <!-- Middle Ring -->
+      <div class="w-32 h-32 border-[4px] border-white/5 border-b-blue-500 rounded-full animate-spin absolute" style="animation-direction: reverse; animation-duration: 1.5s;"></div>
+      <!-- Inner Ring -->
+      <div class="w-24 h-24 border-[4px] border-white/5 border-r-purple-500 rounded-full animate-spin absolute" style="animation-duration: 2s;"></div>
+      <!-- Center Core -->
+      <div class="w-16 h-16 bg-gradient-to-br from-brand-400 to-blue-600 rounded-full flex items-center justify-center shadow-[0_0_30px_#22d3ee] z-10 animate-pulse">
+        <i class="fa-solid fa-microchip text-2xl text-white"></i>
+      </div>
+    </div>
+    <div class="mt-12 flex flex-col items-center">
+      <h3 class="text-2xl font-bold text-white tracking-[0.2em] uppercase shadow-black drop-shadow-lg">Processing Data</h3>
+      <div class="flex items-center gap-2 mt-3">
+        <span class="w-2 h-2 rounded-full bg-brand-400 animate-bounce"></span>
+        <span class="w-2 h-2 rounded-full bg-brand-400 animate-bounce" style="animation-delay: 0.1s"></span>
+        <span class="w-2 h-2 rounded-full bg-brand-400 animate-bounce" style="animation-delay: 0.2s"></span>
+        <p class="text-brand-400 font-medium tracking-widest uppercase text-sm ml-2">Running Neural Engine</p>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Background Ambient Glow -->
+  <div class="absolute top-0 -left-4 w-72 h-72 bg-brand-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
+  <div class="absolute top-0 -right-4 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
+  <div class="absolute -bottom-8 left-20 w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
+
+  <div class="relative z-10 flex flex-col h-screen max-h-screen p-4 md:p-6 lg:p-8 gap-6 max-w-7xl mx-auto">
+    
+    <!-- Top Bar -->
+    <header class="flex justify-between items-center glass rounded-2xl p-4 px-6 shadow-xl shadow-black/50">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-400 to-blue-600 flex items-center justify-center shadow-lg shadow-brand-500/30">
+          <i class="fa-solid fa-eye text-white text-lg"></i>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold tracking-tight text-white leading-tight">VisionPay <span class="text-brand-400 font-light">Terminal</span></h1>
+          <p class="text-xs text-gray-400">AI Financial Forensics v2.0</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-4">
+        <button id="btnToggleAssistive" class="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-500/10 text-green-400 border border-green-500/20 hover:bg-green-500/20 transition-all text-sm font-medium">
+          <i class="fa-solid fa-universal-access"></i>
+          <span class="hidden sm:inline">Assistive Audio</span>
+        </button>
+        <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-dark-800 border border-dark-700">
+          <span class="w-2 h-2 rounded-full bg-brand-400 animate-pulse-slow shadow-[0_0_8px_#22d3ee]"></span>
+          <span class="text-xs font-semibold tracking-wider text-gray-300">EDGE AI ACTIVE</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0">
+      
+      <!-- Left: Camera & Controls (5 cols) -->
+      <section class="lg:col-span-5 flex flex-col gap-4">
+        <!-- Viewfinder -->
+        <div class="glass rounded-2xl p-2 flex-1 relative flex flex-col overflow-hidden shadow-2xl shadow-black/40 border-t border-white/10">
+          <div id="cameraWrapper" class="relative flex-1 bg-black rounded-xl overflow-hidden group">
+            <!-- Video/Canvas -->
+            <video id="webcamFeed" class="absolute inset-0 w-full h-full object-cover" autoplay playsinline muted></video>
+            <canvas id="detectionCanvas" class="absolute inset-0 w-full h-full z-10"></canvas>
+            <div class="scanning-line z-20"></div>
+            
+            <!-- Target Reticle (HUD) -->
+            <div class="absolute inset-4 border-2 border-white/10 rounded-lg pointer-events-none z-10 transition-colors group-hover:border-brand-500/30">
+              <div class="absolute -top-1 -left-1 w-6 h-6 border-t-2 border-l-2 border-brand-400"></div>
+              <div class="absolute -top-1 -right-1 w-6 h-6 border-t-2 border-r-2 border-brand-400"></div>
+              <div class="absolute -bottom-1 -left-1 w-6 h-6 border-b-2 border-l-2 border-brand-400"></div>
+              <div class="absolute -bottom-1 -right-1 w-6 h-6 border-b-2 border-r-2 border-brand-400"></div>
+            </div>
+
+            <!-- Placeholder -->
+            <div id="cameraPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center bg-dark-900/80 backdrop-blur-sm z-30 transition-opacity duration-300">
+              <div class="w-16 h-16 rounded-full bg-dark-800 flex items-center justify-center mb-4 border border-dark-700 shadow-xl">
+                <i class="fa-solid fa-camera text-2xl text-gray-500"></i>
+              </div>
+              <p class="text-gray-400 text-sm text-center max-w-[200px]">Start camera or upload an image to begin scanning</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="grid grid-cols-2 gap-3 shrink-0">
+          <button id="btnStartCamera" class="flex flex-col items-center justify-center gap-2 p-4 rounded-xl glass hover:bg-white/10 transition-all border border-white/5 group">
+            <i class="fa-solid fa-video text-xl text-gray-400 group-hover:text-white transition-colors"></i>
+            <span class="text-sm font-medium">Start Camera</span>
+          </button>
+          
+          <label for="fileInputUpload" class="flex flex-col items-center justify-center gap-2 p-4 rounded-xl glass hover:bg-white/10 transition-all border border-white/5 group cursor-pointer">
+            <i class="fa-solid fa-image text-xl text-gray-400 group-hover:text-white transition-colors"></i>
+            <span class="text-sm font-medium">Upload Image</span>
+            <input type="file" id="fileInputUpload" accept="image/*" class="hidden" />
+          </label>
+          
+          <button id="btnRunScan" class="col-span-2 flex items-center justify-center gap-3 p-4 rounded-xl bg-gradient-to-r from-brand-600 to-blue-600 hover:from-brand-500 hover:to-blue-500 text-white shadow-lg shadow-brand-500/25 transition-all transform hover:-translate-y-0.5 active:translate-y-0 font-semibold tracking-wide">
+            <i class="fa-solid fa-bolt"></i>
+            Execute AI Scan
+          </button>
+        </div>
+      </section>
+
+      <!-- Right: Modules & Results (7 cols) -->
+      <section class="lg:col-span-7 flex flex-col gap-4 h-full min-h-0">
+        
+        <!-- Module Tabs -->
+        <div class="glass rounded-2xl p-2 flex flex-wrap lg:flex-nowrap gap-2 overflow-x-auto no-scrollbar shrink-0 border-t border-white/10">
+          <button class="tab-item glass-active text-brand-400 px-4 py-3 rounded-xl flex items-center gap-2 flex-1 min-w-[140px] justify-center transition-all text-sm font-medium" data-module="cash_count">
+            <i class="fa-solid fa-money-bill-wave"></i> <span>Cash Count</span>
+          </button>
+          <button class="tab-item text-gray-400 hover:text-gray-200 hover:bg-white/5 px-4 py-3 rounded-xl flex items-center gap-2 flex-1 min-w-[140px] justify-center transition-all text-sm font-medium" data-module="fake_note">
+            <i class="fa-solid fa-shield-halved"></i> <span>Fake Note</span>
+          </button>
+          <button class="tab-item text-gray-400 hover:text-gray-200 hover:bg-white/5 px-4 py-3 rounded-xl flex items-center gap-2 flex-1 min-w-[140px] justify-center transition-all text-sm font-medium" data-module="number_ocr">
+            <i class="fa-solid fa-mobile-screen"></i> <span>Number OCR</span>
+          </button>
+          <button class="tab-item text-gray-400 hover:text-gray-200 hover:bg-white/5 px-4 py-3 rounded-xl flex items-center gap-2 flex-1 min-w-[140px] justify-center transition-all text-sm font-medium" data-module="doc_verify">
+            <i class="fa-solid fa-id-card"></i> <span>Doc Verify</span>
+          </button>
+          <button class="tab-item text-gray-400 hover:text-gray-200 hover:bg-white/5 px-4 py-3 rounded-xl flex items-center gap-2 flex-1 min-w-[140px] justify-center transition-all text-sm font-medium" data-module="receipt_fake">
+            <i class="fa-solid fa-receipt"></i> <span>Receipt</span>
+          </button>
+        </div>
+
+        <!-- Result Workspace -->
+        <div class="glass rounded-2xl flex-1 flex flex-col overflow-hidden border-t border-white/10 shadow-xl shadow-black/30">
+          
+          <!-- Header -->
+          <div class="p-6 border-b border-white/10 bg-white/[0.02] flex justify-between items-start">
+            <div>
+              <h2 id="moduleTitle" class="text-2xl font-bold text-white mb-1">Real-Time Cash Counter</h2>
+              <p id="moduleDescription" class="text-gray-400 text-sm">ক্যামেরা ফ্রেমে থাকা বাংলাদেশী টাকার নোট শনাক্ত ও মোট পরিমাণ তাৎক্ষণিক গণনা।</p>
+            </div>
+            <div class="px-3 py-1 bg-dark-800 rounded-lg border border-dark-700 text-xs font-mono text-brand-400" id="moduleLatency">
+              READY
+            </div>
+          </div>
+
+          <!-- Dynamic Content -->
+          <div id="dynamicResultContent" class="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
+            <!-- Injected by JS -->
+            <div class="flex items-center justify-center h-full text-gray-500 flex-col gap-4">
+              <i class="fa-regular fa-compass text-4xl opacity-50"></i>
+              <p>Select a module and scan to view results</p>
+            </div>
+          </div>
+          
+          <!-- Voice Assistant Bar -->
+          <div class="p-4 border-t border-white/10 bg-dark-800/50 flex items-center gap-4">
+            <button id="btnSpeakerReplay" class="w-10 h-10 rounded-full bg-brand-500/20 text-brand-400 flex items-center justify-center hover:bg-brand-500/30 transition-colors shrink-0">
+              <i class="fa-solid fa-volume-high"></i>
+            </button>
+            <div class="flex-1 min-w-0">
+              <p class="text-xs text-brand-400 font-semibold mb-1 uppercase tracking-wider">AI Voice Assistant</p>
+              <p id="speechTranscriptText" class="text-sm text-gray-300 truncate font-medium">"স্বাগতম। ভিশন-পে টার্মিনাল প্রস্তুত।"</p>
+            </div>
+            <div class="w-10 h-10 flex items-center justify-center">
+               <i class="fa-solid fa-waveform-lines text-brand-400 opacity-50 animate-pulse"></i>
+            </div>
+          </div>
+
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Toasts -->
+  <div id="toastContainer" class="fixed bottom-6 right-6 z-50 flex flex-col gap-3"></div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="js/mock_data.js"></script>
+  <script src="js/camera_stream.js"></script>
+  <script src="js/modules/voice_assistant.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

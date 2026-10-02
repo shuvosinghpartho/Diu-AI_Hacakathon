@@ -1,0 +1,229 @@
+/* Diagnostic Right Panel */
+.diagnostic-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 6-Module Tab Navigation Bar */
+.module-tabs-nav {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.tab-item {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-dim);
+  padding: 12px 10px;
+  border-radius: var(--radius-md);
+  color: var(--text-dim);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  transition: all var(--transition);
+  text-align: left;
+}
+
+.tab-item:hover {
+  background: var(--bg-card);
+  color: var(--text-main);
+}
+
+.tab-item.active {
+  background: rgba(0, 229, 255, 0.08);
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+  box-shadow: 0 0 15px rgba(0, 229, 255, 0.15);
+}
+
+/* Workspace Results Card */
+.result-workspace {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-dim);
+  border-radius: var(--radius-lg);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  flex: 1;
+}
+
+.workspace-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 1px solid var(--border-dim);
+  padding-bottom: 14px;
+}
+
+.workspace-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.workspace-desc {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  font-family: var(--font-bn);
+  margin-top: 4px;
+}
+
+.confidence-badge {
+  font-family: monospace;
+  font-size: 0.75rem;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--accent-cyan);
+  border: 1px solid var(--border-dim);
+}
+
+/* Dynamic Cards for Outputs */
+.dynamic-results-card {
+  min-height: 230px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* Component Output Styles */
+.stat-summary-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.stat-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-dim);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  text-align: center;
+}
+
+.stat-box.highlight {
+  border-color: rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.06);
+}
+
+.stat-box.danger {
+  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.06);
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-sub);
+  text-transform: uppercase;
+}
+
+.stat-val {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-top: 4px;
+}
+
+.log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.log-item {
+  background: var(--bg-card);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  border-left: 3px solid var(--accent-cyan);
+}
+
+.log-item.fake {
+  border-left-color: var(--accent-red);
+}
+
+/* Spoken Dialogue Container */
+.speech-terminal-box {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--border-dim);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: auto;
+}
+
+.speech-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(0, 229, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-cyan);
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.speech-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.speech-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-sub);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.speech-transcript {
+  font-family: var(--font-bn);
+  font-size: 0.95rem;
+  color: #e2e8f0;
+  line-height: 1.4;
+}
+
+/* Toast Notifications */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.toast {
+  background: var(--bg-card);
+  border-left: 4px solid var(--accent-cyan);
+  padding: 12px 18px;
+  border-radius: var(--radius-sm);
+  color: var(--text-main);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 1024px) {
+  .terminal-container {
+    grid-template-columns: 1fr;
+  }
+  .module-tabs-nav {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

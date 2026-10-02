@@ -1,0 +1,10 @@
+venv/
+.env
+.app_pid
+app.log
+__pycache__/
+*.pyc
+.DS_Store
+test_gemini.py
+test_gemini_service.py
+dummy.jpg

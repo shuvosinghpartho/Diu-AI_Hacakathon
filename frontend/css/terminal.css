@@ -1,0 +1,176 @@
+/* Layout Panels */
+.terminal-container {
+  display: grid;
+  grid-template-columns: 1.1fr 1.3fr;
+  gap: 20px;
+  padding: 20px 24px;
+  flex: 1;
+  max-width: 1700px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.viewport-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.viewfinder-card {
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-dim);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: var(--shadow-hud);
+}
+
+/* Video Frame & HUD Visualizer */
+.camera-wrapper {
+  position: relative;
+  width: 100%;
+  height: 480px;
+  background-color: #030508;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+#webcamFeed {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+#detectionCanvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Scanning Laser Animation */
+.scan-laser {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+  box-shadow: 0 0 15px var(--accent-cyan);
+  z-index: 15;
+  display: none;
+}
+
+.scanning .scan-laser {
+  display: block;
+  animation: laser-sweep 2.2s infinite ease-in-out;
+}
+
+@keyframes laser-sweep {
+  0% { top: 2%; opacity: 0.2; }
+  50% { top: 96%; opacity: 1; }
+  100% { top: 2%; opacity: 0.2; }
+}
+
+/* Viewfinder Corner HUD */
+.hud-corner {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--accent-cyan);
+  z-index: 12;
+  pointer-events: none;
+}
+
+.top-left { top: 12px; left: 12px; border-right: none; border-bottom: none; }
+.top-right { top: 12px; right: 12px; border-left: none; border-bottom: none; }
+.bottom-left { bottom: 12px; left: 12px; border-right: none; border-top: none; }
+.bottom-right { bottom: 12px; right: 12px; border-left: none; border-top: none; }
+
+.camera-placeholder {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 12, 20, 0.95);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-sub);
+  z-index: 5;
+  font-family: var(--font-bn);
+  font-size: 0.95rem;
+}
+
+.camera-placeholder i {
+  font-size: 3rem;
+  color: var(--text-dim);
+}
+
+/* Viewport Controls */
+.viewport-toolbar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ctrl-btn {
+  padding: 12px 18px;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  transition: all var(--transition);
+}
+
+.btn-primary {
+  background: var(--bg-card);
+  border: 1px solid var(--border-bright);
+  color: var(--accent-cyan);
+}
+
+.btn-primary:hover {
+  background: rgba(0, 229, 255, 0.15);
+}
+
+.btn-secondary {
+  background: var(--bg-card);
+  border: 1px solid var(--border-dim);
+  color: var(--text-main);
+}
+
+.btn-secondary:hover {
+  background: var(--bg-card-hover);
+}
+
+.btn-accent {
+  background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+  color: #000;
+  box-shadow: var(--shadow-cyan-glow);
+}
+
+.btn-accent:hover {
+  filter: brightness(1.15);
+  transform: translateY(-1px);
+}
+
+.btn-icon {
+  background: var(--bg-card);
+  border: 1px solid var(--border-dim);
+  color: var(--accent-cyan);
+  padding: 12px 16px;
+}
+
+.btn-icon:hover {
+  background: var(--bg-card-hover);
+}
