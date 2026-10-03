@@ -32,10 +32,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const details = [
       fields.provider && `Provider ${fields.provider}`,
       fields.transaction_type && `Transaction type ${fields.transaction_type}`,
+      fields.counterparty_name && `Person, store, or bank ${fields.counterparty_name}`,
+      fields.bank_name && `Bank ${fields.bank_name}`,
       fields.amount && `Amount ${fields.amount} taka`,
       fields.transaction_id && `Transaction ID ${fields.transaction_id}`,
       fields.sender && `Sender ${fields.sender}`,
       fields.receiver && `Receiver ${fields.receiver}`,
+      fields.agent_number && `Agent number ${fields.agent_number}`,
     ].filter(Boolean);
     return `Receipt scan complete. ${details.join('. ')}. Verify the payment in the provider application.`;
   };
@@ -45,6 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const latencyEl = document.getElementById('moduleLatency');
   const dynamicContainer = document.getElementById('dynamicResultContent');
   const cameraWrapper = document.getElementById('cameraWrapper');
+  ImageCropper.init(cameraWrapper);
 
   const showToast = (message, isError = false) => {
     const container = document.getElementById('toastContainer');
@@ -273,6 +277,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnStartCam.addEventListener('click', async () => {
       const active = await CameraStream.start();
       if (active) {
+        ImageCropper.clear();
         selectedImageFile = null;
         delete moduleResults.number_ocr;
         if (activeModuleKey === 'number_ocr') renderModuleView('number_ocr');
@@ -314,8 +319,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const mockData = initialResult(scanModuleKey);
         let result = mockData;
         if (scanModuleKey !== 'voice_suite') {
-          const image = selectedImageFile || await CameraStream.captureFrame();
-          const response = await VisionPayApi.analyze(scanModuleKey, image, image.name || 'camera-capture.jpg');
+          const image = selectedImageFile
+            ? await ImageCropper.getCroppedBlob()
+            : await CameraStream.captureFrame();
+          const response = await VisionPayApi.analyze(
+            scanModuleKey, image, selectedImageFile?.name || 'camera-capture.jpg');
           result = { ...mockData, ...response, scanned: true, pending: false };
           if (scanModuleKey === 'number_ocr') result.badge = response.found ? 'NUMBERS FOUND' : 'NO NUMBER FOUND';
         }
@@ -386,6 +394,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!file) return;
       if (!file.type.startsWith('image/')) {
         selectedImageFile = null;
+        ImageCropper.clear();
         delete moduleResults.number_ocr;
         if (activeModuleKey === 'number_ocr') renderModuleView('number_ocr');
         showToast('অনুগ্রহ করে একটি বৈধ ছবির ফাইল নির্বাচন করুন।', true);
@@ -416,6 +425,7 @@ document.addEventListener('DOMContentLoaded', () => {
           `;
           if (cameraWrapper) cameraWrapper.appendChild(preview);
         }
+        preview.onload = () => ImageCropper.setImage(file, preview);
         preview.src = event.target.result;
 
         const placeholder = document.getElementById('cameraPlaceholder');

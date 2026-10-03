@@ -4,7 +4,9 @@ const FieldExtractionUI = {
     date_of_birth: 'Date of birth', nid_number: 'NID number', passport_number: 'Passport number',
     provider: 'Provider', transaction_id: 'Transaction ID', amount: 'Amount',
     date_time: 'Date and time', sender: 'Sender', receiver: 'Receiver',
-    reference: 'Reference', transaction_type: 'Transaction type'
+    reference: 'Reference', transaction_type: 'Transaction type',
+    counterparty_name: 'Person / store / bank', agent_number: 'Agent number',
+    bank_name: 'Bank'
   },
 
   render(container, data, kind) {

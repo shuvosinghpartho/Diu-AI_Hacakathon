@@ -64,6 +64,31 @@ class FieldExtractionService:
                 return min(choices, key=lambda choice: choice[0])[1]
         return None
 
+    def _top_card_values(self, readings, transaction_type):
+        """Return OCR lines visually located between the title and field grid."""
+        title_reading = next(
+            (item for item in readings if item["text"].strip().casefold() == transaction_type.casefold()), None)
+        title_box = self._box(title_reading) if title_reading else None
+        field_labels = {
+            "sent from", "time", "date", "date & time", "transaction id", "trx id",
+            "total", "amount", "reference", "ref",
+        }
+        field_tops = [
+            box[1] for item in readings
+            if item["text"].strip().rstrip(":").casefold() in field_labels
+            if (box := self._box(item))
+        ]
+        if not title_box or not field_tops:
+            return []
+        top, bottom = title_box[3], min(field_tops)
+        values = []
+        for item in readings:
+            box = self._box(item)
+            value = item["text"].strip()
+            if box and top < box[1] < bottom and value.casefold() != transaction_type.casefold():
+                values.append(value)
+        return values
+
     def _base(self, readings):
         lines = [item["text"] for item in readings]
         confidence = round(mean(item["confidence"] for item in readings), 3) if readings else 0.0
@@ -175,10 +200,41 @@ class FieldExtractionService:
         reference = self._value_below_label(readings, ["Reference", "Ref"])
         if reference:
             fields["reference"] = reference
+        transaction_types = {
+            "send money": "Send Money",
+            "mobile recharge": "Mobile Recharge",
+            "received money": "Received Money",
+            "cash out": "Cash Out",
+            "loan repayment": "Loan Repayment",
+            "payment": "Payment",
+        }
         transaction_type = next(
-            (line for line in lines if line.casefold() in {"send money", "cash out", "payment"}), None)
+            (canonical for line in lines
+             if (canonical := transaction_types.get(line.strip().casefold()))), None)
         if transaction_type:
             fields["transaction_type"] = transaction_type
+
+            top_values = self._top_card_values(readings, transaction_type)
+            name_candidates = []
+            for value in top_values:
+                cleaned = re.sub(r"[_\s-]*01[3-9][0-9]{8}\b", "", value).strip(" _-")
+                if (cleaned and not re.fullmatch(r"[0-9*]+", cleaned)
+                        and cleaned.casefold() not in {"bkash", "বিকাশ", "কতাশ"}
+                        and cleaned.casefold() not in {name.casefold() for name in name_candidates}):
+                    name_candidates.append(cleaned)
+            if name_candidates:
+                fields["counterparty_name"] = name_candidates[0]
+            if phone_numbers:
+                if transaction_type == "Received Money":
+                    fields["sender"] = phone_numbers[0]
+                    fields.pop("receiver", None)
+                elif transaction_type == "Cash Out":
+                    fields["agent_number"] = phone_numbers[0]
+                    fields.pop("receiver", None)
+                else:
+                    fields["receiver"] = phone_numbers[0]
+            if transaction_type == "Loan Repayment" and name_candidates:
+                fields["bank_name"] = name_candidates[0]
 
         return {
             "verdict": "FIELDS_EXTRACTED" if readings else "NO_TEXT_FOUND",
