@@ -1,0 +1,2 @@
+# EasyOCR and its CPU-based PyTorch runtime. Verified with Python 3.14 on Windows.
+easyocr>=1.7.2,<2

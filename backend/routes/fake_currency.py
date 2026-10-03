@@ -27,13 +27,18 @@ class FakeNoteResponse(BaseModel):
 
 @router.post("/verify-note", response_model=FakeNoteResponse)
 async def verify_currency_note(file: UploadFile = File(...), db: AsyncIOMotorDatabase = Depends(get_database)):
-    if not file.content_type.startswith("image/"):
+    if not (file.content_type or "").startswith("image/"):
         raise HTTPException(status_code=400, detail="Invalid file type. Image required.")
         
     image_bytes = await file.read()
     
     # Process image with Gemini API
-    analysis_result = gemini_service.analyze_image(image_bytes, "fake_currency")
+    try:
+        analysis_result = gemini_service.analyze_image(image_bytes, "fake_currency")
+    except ValueError as exc:
+        raise HTTPException(status_code=503, detail="Fake-note screening is unavailable: Gemini is not configured.") from exc
+    if analysis_result.get("verdict") == "ERROR":
+        raise HTTPException(status_code=502, detail="Fake-note analysis provider failed. Try again later.")
     
     response = FakeNoteResponse(
         success=True,

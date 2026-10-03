@@ -4,6 +4,7 @@ const CameraStream = {
   ctx: null,
   stream: null,
   isActive: false,
+  lastError: '',
 
   init() {
     this.video = document.getElementById('webcamFeed');
@@ -24,6 +25,11 @@ const CameraStream = {
 
   async start() {
     try {
+      this.lastError = '';
+      if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+        this.lastError = 'Camera requires HTTPS on a phone. Use Upload Image, or open the app through an HTTPS address.';
+        return false;
+      }
       if (this.stream) {
         this.stop();
       }
@@ -48,6 +54,9 @@ const CameraStream = {
       return true;
     } catch (err) {
       console.error("[CameraStream] Camera stream could not be started:", err);
+      this.lastError = err.name === 'NotAllowedError'
+        ? 'Camera permission was denied. Allow camera access in the browser site settings.'
+        : 'The camera could not be opened. Check browser permission and whether another app is using it.';
       return false;
     }
   },

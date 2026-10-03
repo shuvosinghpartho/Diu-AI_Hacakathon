@@ -1,58 +1,54 @@
-from fastapi import APIRouter, File, UploadFile, HTTPException, Depends
-from pydantic import BaseModel
-from typing import List, Optional
+import asyncio
+import logging
+from datetime import datetime, timezone
+from typing import Dict, List
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from pydantic import BaseModel, Field
+
 from ..database import get_database
-from ..services.gemini_service import gemini_service
+from ..services.field_extraction_service import field_extraction_service
+from ..services.ocr_service import InvalidOCRImage, OCREngineError
 
-router = APIRouter(prefix="/api/v1/receipt", tags=["Receipt Forensics"])
+router = APIRouter(prefix="/api/v1/receipt", tags=["Receipt OCR"])
+logger = logging.getLogger(__name__)
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 
-class DetectionBox(BaseModel):
-    label: str
-    x: int
-    y: int
-    w: int
-    h: int
-    color: str
 
 class ReceiptForensicsResponse(BaseModel):
     success: bool
     verdict: str
     verdict_label: str
     risk_score: str
-    confidence: float
+    confidence: float = Field(ge=0, le=1)
+    extracted_fields: Dict[str, str]
+    raw_text: List[str]
     tamper_flags: List[str]
-    detections: Optional[List[DetectionBox]] = []
+    detections: List[dict]
     bangla_speech: str
+
 
 @router.post("/analyze-screenshot", response_model=ReceiptForensicsResponse)
 async def analyze_payment_screenshot(file: UploadFile = File(...), db: AsyncIOMotorDatabase = Depends(get_database)):
-    if not file.content_type.startswith("image/"):
+    if not (file.content_type or "").startswith("image/"):
         raise HTTPException(status_code=400, detail="Invalid file type. Image required.")
-        
-    image_bytes = await file.read()
-
-    # Process image dynamically using Gemini
-    analysis_result = gemini_service.analyze_image(image_bytes, "receipt_forensics")
-
-    response = ReceiptForensicsResponse(
-        success=True,
-        verdict=analysis_result.get("verdict", "UNKNOWN"),
-        verdict_label=analysis_result.get("verdict_label", "অজানা"),
-        risk_score=analysis_result.get("risk_score", "0%"),
-        confidence=analysis_result.get("confidence", 0.90),
-        tamper_flags=analysis_result.get("tamper_flags", []),
-        detections=analysis_result.get("detections", []),
-        bangla_speech=analysis_result.get("bangla_speech", "")
-    )
-
+    image_bytes = await file.read(MAX_UPLOAD_BYTES + 1)
+    if len(image_bytes) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="Image must be 10 MB or smaller.")
     try:
-        await db.scan_history.insert_one({
-            "module": "receipt_fake",
-            "filename": file.filename,
-            "result": response.dict()
-        })
-    except Exception as e:
-        print("DB Error:", e)
-
+        result = await run_in_threadpool(field_extraction_service.extract_receipt, image_bytes)
+    except InvalidOCRImage as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except OCREngineError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    response = ReceiptForensicsResponse(success=True, **result)
+    try:
+        await asyncio.wait_for(db.scan_history.insert_one({
+            "module": "receipt_ocr", "filename": file.filename,
+            "created_at": datetime.now(timezone.utc), "result": response.model_dump(),
+        }), timeout=1.5)
+    except Exception:
+        logger.warning("Could not persist receipt OCR history")
     return response

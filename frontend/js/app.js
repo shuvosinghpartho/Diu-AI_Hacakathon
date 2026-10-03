@@ -6,6 +6,39 @@ document.addEventListener('DOMContentLoaded', () => {
   let assistiveModeEnabled = true;
   let selectedImageFile = null;
   let currentChartInstance = null;
+  const moduleResults = {};
+  const emptyNumberResult = {
+    title: 'Mobile Number OCR', desc: 'ছবি থেকে বাংলাদেশি মোবাইল নম্বর শনাক্ত করুন।',
+    badge: 'READY', numbers: [], scanned: false, detections: [],
+    bangla_speech: 'ছবি আপলোড করুন অথবা ক্যামেরা চালু করে স্ক্যান করুন।'
+  };
+  const emptyDocumentResult = {
+    ...MOCK_MODULE_DATABASE.doc_verify, badge: 'LOCAL OCR: READY', doc_type: 'Document OCR',
+    status: 'READY', status_label: 'Upload a document to extract fields', confidence: 0,
+    extracted_fields: {}, raw_text: [], fields_verified: [], detections: [], scanned: false
+  };
+  const emptyReceiptResult = {
+    ...MOCK_MODULE_DATABASE.receipt_fake, badge: 'LOCAL OCR: READY', verdict: 'READY',
+    verdict_label: 'Receipt field extraction', risk_score: 'N/A', confidence: 0,
+    extracted_fields: {}, raw_text: [], tamper_flags: [], detections: [], scanned: false
+  };
+  const initialResult = key => key === 'number_ocr' ? emptyNumberResult
+    : key === 'doc_verify' ? emptyDocumentResult
+    : key === 'receipt_fake' ? emptyReceiptResult
+    : MOCK_MODULE_DATABASE[key];
+  const speechFallback = (key, data) => {
+    if (key !== 'receipt_fake') return '';
+    const fields = data.extracted_fields || {};
+    const details = [
+      fields.provider && `Provider ${fields.provider}`,
+      fields.transaction_type && `Transaction type ${fields.transaction_type}`,
+      fields.amount && `Amount ${fields.amount} taka`,
+      fields.transaction_id && `Transaction ID ${fields.transaction_id}`,
+      fields.sender && `Sender ${fields.sender}`,
+      fields.receiver && `Receiver ${fields.receiver}`,
+    ].filter(Boolean);
+    return `Receipt scan complete. ${details.join('. ')}. Verify the payment in the provider application.`;
+  };
 
   const titleEl = document.getElementById('moduleTitle');
   const descEl = document.getElementById('moduleDescription');
@@ -37,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 3200);
   };
 
-  const renderModuleView = (key, result = MOCK_MODULE_DATABASE[key]) => {
+  const renderModuleView = (key, result = moduleResults[key] || initialResult(key)) => {
     const data = result;
     if (!data) return;
     const confidence = typeof data.confidence === 'number'
@@ -110,51 +143,17 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       `;
     } else if (key === 'number_ocr') {
-      html = `
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div class="${statBoxHighlightClasses}">
-            <span class="${labelClasses}">শনাক্তকৃত নম্বর</span>
-            <div class="${valClasses} text-brand-400">${data.extracted_number}</div>
-          </div>
-          <div class="${statBoxClasses}">
-            <span class="${labelClasses}">টেলিকম নেটওয়ার্ক</span>
-            <div class="${valClasses}">${data.carrier}</div>
-          </div>
-          <div class="${statBoxClasses}">
-            <span class="${labelClasses}">OCR কনফিডেন্স</span>
-            <div class="${valClasses} text-green-400">${confidence}</div>
-          </div>
-        </div>
-        <div class="mt-4 bg-dark-800/50 border border-white/5 rounded-xl p-4 relative" style="height: 200px;">
-           <canvas id="moduleChart"></canvas>
-        </div>
-        <button id="btnCopyNumber" class="mt-4 w-full py-3 rounded-xl bg-dark-800 border border-white/10 text-gray-300 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-center gap-2 font-medium">
-          <i class="fa-regular fa-copy"></i> নম্বরটি ক্যাশ-ইন / সেন্ড মানি ফিল্ডে কপি করুন
-        </button>
-      `;
+      // Render validated numbers with DOM text nodes below.
     } else if (key === 'doc_verify' || key === 'receipt_fake') {
-      const isFake = key === 'receipt_fake';
-      const statusBoxClasses = isFake ? statBoxDangerClasses : statBoxHighlightClasses;
-      const valColor = isFake ? "text-red-400" : "text-brand-400";
-      
-      html = `
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div class="${statusBoxClasses}">
-            <span class="${labelClasses}">${isFake ? 'ফরেনসিক ফলাফল' : 'নথিপত্রের ধরন'}</span>
-            <div class="${valClasses} ${valColor}">${isFake ? data.verdict_label : data.doc_type}</div>
-          </div>
-          <div class="${statBoxClasses}">
-            <span class="${labelClasses}">${isFake ? 'কারচুপি স্কোর' : 'যাচাইকরণের ফলাফল'}</span>
-            <div class="${valClasses} text-orange-400">${isFake ? data.risk_score : data.status_label}</div>
-          </div>
-        </div>
-        <div class="mt-4 bg-dark-800/50 border border-white/5 rounded-xl p-4 relative" style="height: 250px;">
-           <canvas id="moduleChart"></canvas>
-        </div>
-      `;
+      // Render OCR values as text nodes below so uploaded text cannot become HTML.
     }
 
-    if (dynamicContainer) dynamicContainer.innerHTML = html;
+    if (dynamicContainer) {
+      dynamicContainer.innerHTML = html;
+      if (key === 'number_ocr') NumberScannerUI.render(dynamicContainer, data, showToast);
+      if (key === 'doc_verify') FieldExtractionUI.render(dynamicContainer, data, 'document');
+      if (key === 'receipt_fake') FieldExtractionUI.render(dynamicContainer, data, 'receipt');
+    }
 
     // Chart.js rendering
     if (currentChartInstance) {
@@ -246,14 +245,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    const btnCopy = document.getElementById('btnCopyNumber');
-    if (btnCopy) {
-      btnCopy.addEventListener('click', () => {
-        navigator.clipboard.writeText(data.extracted_number);
-        showToast(`নম্বর ${data.extracted_number} কপি হয়েছে!`);
-      });
-    }
-
     // Update Speech Transcript Text globally
     const transcriptEl = document.getElementById('speechTranscriptText');
     if(transcriptEl) transcriptEl.innerText = `"${data.bangla_speech}"`;
@@ -283,6 +274,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const active = await CameraStream.start();
       if (active) {
         selectedImageFile = null;
+        delete moduleResults.number_ocr;
+        if (activeModuleKey === 'number_ocr') renderModuleView('number_ocr');
         showToast("ক্যামেরা লাইভ ভিউ সক্রিয় হয়েছে");
         VoiceAssistant.speak("ক্যামেরা সক্রিয় হয়েছে। নোট অথবা নথিপত্র ফ্রেমে রাখুন।");
       } else {
@@ -300,6 +293,11 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
+      const scanModuleKey = activeModuleKey;
+      if (scanModuleKey === 'number_ocr') {
+        moduleResults.number_ocr = { ...emptyNumberResult, pending: true, badge: 'SCANNING' };
+        renderModuleView('number_ocr');
+      }
       if (cameraWrapper) cameraWrapper.classList.add('scanning');
       btnScan.disabled = true;
 
@@ -313,32 +311,31 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       try {
-        const mockData = MOCK_MODULE_DATABASE[activeModuleKey];
+        const mockData = initialResult(scanModuleKey);
         let result = mockData;
-
-        if (activeModuleKey !== 'voice_suite') {
+        if (scanModuleKey !== 'voice_suite') {
           const image = selectedImageFile || await CameraStream.captureFrame();
-          const response = await VisionPayApi.analyze(activeModuleKey, image, image.name || 'camera-capture.jpg');
-          result = {
-            ...mockData,
-            ...response,
-            confidence: typeof response.confidence === 'number'
-              ? `${(response.confidence * 100).toFixed(1)}%`
-              : response.confidence
-          };
+          const response = await VisionPayApi.analyze(scanModuleKey, image, image.name || 'camera-capture.jpg');
+          result = { ...mockData, ...response, scanned: true, pending: false };
+          if (scanModuleKey === 'number_ocr') result.badge = response.found ? 'NUMBERS FOUND' : 'NO NUMBER FOUND';
         }
-
-        renderModuleView(activeModuleKey, result);
-        if (result.detections && result.detections.length > 0) {
-          CameraStream.drawBoundingBoxes(result.detections);
-        } else {
-          CameraStream.clearCanvas();
+        moduleResults[scanModuleKey] = result;
+        if (activeModuleKey === scanModuleKey) {
+          renderModuleView(scanModuleKey, result);
+          if (result.detections?.length) CameraStream.drawBoundingBoxes(result.detections);
+          else CameraStream.clearCanvas();
+          VoiceAssistant.speak(result.bangla_speech, speechFallback(scanModuleKey, result));
         }
-
-        VoiceAssistant.speak(result.bangla_speech);
-        showToast(activeModuleKey === 'voice_suite' ? 'ভয়েস পরীক্ষা সম্পন্ন হয়েছে' : 'API বিশ্লেষণ সফলভাবে সম্পন্ন হয়েছে');
+        showToast(scanModuleKey === 'number_ocr' && !result.found ? 'কোনো মোবাইল নম্বর পাওয়া যায়নি।' : 'বিশ্লেষণ সম্পন্ন হয়েছে');
       } catch (error) {
         console.error('[VisionPay] Scan failed:', error);
+        if (scanModuleKey === 'number_ocr') {
+          moduleResults.number_ocr = { ...emptyNumberResult, error: error.message, badge: 'SCAN FAILED' };
+          if (activeModuleKey === scanModuleKey) {
+            renderModuleView('number_ocr');
+            CameraStream.clearCanvas();
+          }
+        }
         showToast(error.message || 'স্ক্যান সম্পন্ন করা যায়নি।', true);
       } finally {
         if (cameraWrapper) cameraWrapper.classList.remove('scanning');
@@ -358,8 +355,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnReplay = document.getElementById('btnSpeakerReplay');
   if (btnReplay) {
     btnReplay.addEventListener('click', () => {
-      const currentData = MOCK_MODULE_DATABASE[activeModuleKey];
-      VoiceAssistant.speak(currentData.bangla_speech);
+      const currentData = moduleResults[activeModuleKey] || (activeModuleKey === 'number_ocr' ? emptyNumberResult : MOCK_MODULE_DATABASE[activeModuleKey]);
+      VoiceAssistant.speak(currentData.bangla_speech, speechFallback(activeModuleKey, currentData));
     });
   }
 
@@ -389,12 +386,16 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!file) return;
       if (!file.type.startsWith('image/')) {
         selectedImageFile = null;
+        delete moduleResults.number_ocr;
+        if (activeModuleKey === 'number_ocr') renderModuleView('number_ocr');
         showToast('অনুগ্রহ করে একটি বৈধ ছবির ফাইল নির্বাচন করুন।', true);
         fileUploadInput.value = '';
         return;
       }
 
       selectedImageFile = file;
+      delete moduleResults.number_ocr;
+      if (activeModuleKey === 'number_ocr') renderModuleView('number_ocr');
 
       const reader = new FileReader();
       reader.onload = (event) => {
@@ -408,7 +409,9 @@ document.addEventListener('DOMContentLoaded', () => {
             left: 0;
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: contain;
+            object-position: center;
+            background: #020617;
             z-index: 2;
           `;
           if (cameraWrapper) cameraWrapper.appendChild(preview);

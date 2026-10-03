@@ -1,6 +1,7 @@
 const VoiceAssistant = {
   enabled: true,
   currentUtterance: null,
+  voices: [],
 
   init() {
     if (!('speechSynthesis' in window)) {
@@ -8,6 +9,11 @@ const VoiceAssistant = {
       this.enabled = false;
       return false;
     }
+    const loadVoices = () => {
+      this.voices = window.speechSynthesis.getVoices?.() || [];
+    };
+    loadVoices();
+    window.speechSynthesis.addEventListener?.('voiceschanged', loadVoices);
     return true;
   },
 
@@ -29,21 +35,32 @@ const VoiceAssistant = {
     }
   },
 
-  speak(text) {
+  speak(text, fallbackText = '') {
     if (!this.enabled || !text) return;
 
     this.stop();
 
     const cleanText = text.replace(/<[^>]*>/g, '').trim();
-    const utterance = new SpeechSynthesisUtterance(cleanText);
+    const cleanFallback = fallbackText.replace(/<[^>]*>/g, '').trim();
+    const voices = this.voices.length ? this.voices : (window.speechSynthesis.getVoices?.() || []);
+    const banglaVoice = voices.find(voice => /^bn(?:-|$)/i.test(voice.lang));
+    const spokenText = banglaVoice ? cleanText : (cleanFallback || cleanText);
+    const utterance = new SpeechSynthesisUtterance(spokenText);
 
-    utterance.lang = 'bn-BD';
+    if (banglaVoice) {
+      utterance.voice = banglaVoice;
+      utterance.lang = banglaVoice.lang;
+    } else {
+      const englishVoice = voices.find(voice => /^en(?:-|$)/i.test(voice.lang));
+      if (englishVoice) utterance.voice = englishVoice;
+      utterance.lang = englishVoice?.lang || 'en-US';
+    }
     utterance.rate = 0.95;
     utterance.pitch = 1.0;
 
     const transcriptEl = document.getElementById('speechTranscriptText');
     if (transcriptEl) {
-      transcriptEl.innerText = `"${cleanText}"`;
+      transcriptEl.innerText = `"${spokenText}"`;
     }
 
     const avatarRing = document.querySelector('.speech-avatar');
@@ -61,6 +78,7 @@ const VoiceAssistant = {
     };
 
     this.currentUtterance = utterance;
+    window.speechSynthesis.resume?.();
     window.speechSynthesis.speak(utterance);
   }
 };

@@ -56,7 +56,7 @@ const MOCK_MODULE_DATABASE = {
 
   doc_verify: {
     id: "doc_verify",
-    title: "4. Transaction Document Verifier (KYC & Slip Engine)",
+    title: "4. Local Document OCR",
     desc: "জাতীয় পরিচয়পত্র (NID) ও ব্যাংক চালানের বাউন্ডারি এবং সিল যাচাই।",
     badge: "STATUS: CERTIFIED",
     doc_type: "Smart National ID Card (NID)",
@@ -75,7 +75,7 @@ const MOCK_MODULE_DATABASE = {
 
   receipt_fake: {
     id: "receipt_fake",
-    title: "5. Fake Transaction Receipt Forensics (ELA Engine)",
+    title: "5. Local Receipt Field Extraction",
     desc: "পেমেন্ট স্ক্রিনশটের ডিজিটাল কারচুপি, ফন্ট অসঙ্গতি ও TrxID বিশ্লেষণ।",
     badge: "FORENSICS: ELA ACTIVE",
     verdict: "TAMPERED_RECEIPT",
