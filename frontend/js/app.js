@@ -22,7 +22,17 @@ document.addEventListener('DOMContentLoaded', () => {
     verdict_label: 'Receipt field extraction', risk_score: 'N/A', confidence: 0,
     extracted_fields: {}, raw_text: [], tamper_flags: [], detections: [], scanned: false
   };
+  const emptyCurrencyResult = {
+    ...MOCK_MODULE_DATABASE.fake_note,
+    title: '2. Local BDT Denomination Recognition',
+    desc: 'Detect Bangladeshi banknote regions and classify each denomination with the local model.',
+    badge: 'LOCAL MODEL: READY', verdict: 'READY', verdict_label: 'Upload a currency image',
+    risk_score: 'N/A', confidence: 0, features_failed: [], detections: [], breakdown: [],
+    total_notes: 0, total_amount: 0, scanned: false,
+    bangla_speech: 'টাকার ছবি আপলোড করুন অথবা ক্যামেরা চালু করে স্ক্যান করুন।'
+  };
   const initialResult = key => key === 'number_ocr' ? emptyNumberResult
+    : key === 'fake_note' ? emptyCurrencyResult
     : key === 'doc_verify' ? emptyDocumentResult
     : key === 'receipt_fake' ? emptyReceiptResult
     : MOCK_MODULE_DATABASE[key];
@@ -114,19 +124,20 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       `;
     } else if (key === 'fake_note') {
+      const recognized = data.verdict === 'RECOGNIZED_CURRENCY';
       html = `
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div class="${statBoxDangerClasses}">
-            <span class="${labelClasses}">নোটের স্ট্যাটাস</span>
-            <div class="${valClasses} text-red-400">${data.verdict_label}</div>
+          <div class="${recognized ? statBoxHighlightClasses : statBoxDangerClasses}">
+            <span class="${labelClasses}">Recognition status</span>
+            <div class="${valClasses} ${recognized ? 'text-green-400' : 'text-red-400'}">${data.verdict_label}</div>
           </div>
           <div class="${statBoxClasses}">
-            <span class="${labelClasses}">কারচুপির সম্ভাবনা</span>
-            <div class="${valClasses} text-orange-400">${data.risk_score || confidence}</div>
+            <span class="${labelClasses}">Detected amount</span>
+            <div class="${valClasses} text-green-400">৳${Number(data.total_amount || 0).toLocaleString()}</div>
           </div>
           <div class="${statBoxClasses}">
-            <span class="${labelClasses}">ইনসপেকশন চ্যানেল</span>
-            <div class="${valClasses} text-brand-400">Color-Shift & OVI</div>
+            <span class="${labelClasses}">Model confidence</span>
+            <div class="${valClasses} text-brand-400">${confidence}</div>
           </div>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
@@ -134,15 +145,16 @@ document.addEventListener('DOMContentLoaded', () => {
              <canvas id="moduleChart"></canvas>
           </div>
           <div class="flex flex-col gap-2 overflow-y-auto" style="height: 220px;">
-            ${data.features_failed.map(f => `
-              <div class="flex justify-between items-center bg-red-500/5 border border-red-500/10 rounded-lg p-2.5">
+            ${(data.detections || []).map(d => `
+              <div class="flex justify-between items-center bg-brand-500/5 border border-brand-500/10 rounded-lg p-2.5">
                 <span class="flex items-center gap-3 text-xs text-gray-300">
-                  <i class="fa-solid fa-triangle-exclamation text-red-400"></i> 
-                  <span>${f}</span>
+                  <i class="fa-solid fa-money-bill text-brand-400"></i>
+                  <span>${d.label}</span>
                 </span>
-                <span class="text-[10px] font-semibold px-2 py-1 bg-red-500/20 text-red-400 rounded-md">ত্রুটি</span>
+                <span class="text-[10px] font-semibold px-2 py-1 bg-brand-500/20 text-brand-400 rounded-md">NOTE</span>
               </div>
-            `).join('')}
+            `).join('') || '<div class="text-sm text-gray-400">No note was confidently recognized.</div>'}
+            <p class="text-xs text-amber-300 mt-2">This model recognizes denominations only. It does not verify whether a note is counterfeit.</p>
           </div>
         </div>
       `;
@@ -199,24 +211,25 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         });
       } else if (key === 'fake_note') {
-        const risk = parseFloat(data.risk_score || confidence) || 94.2;
+        const chartLabels = (data.breakdown || []).map(item => item.note);
+        const chartValues = (data.breakdown || []).map(item => item.count);
+        const chartColors = (data.breakdown || []).map(item => item.color);
         currentChartInstance = new Chart(ctx, {
-          type: 'doughnut',
+          type: 'bar',
           data: {
-            labels: ['Risk Score', 'Authenticity'],
+            labels: chartLabels.length ? chartLabels : ['No recognized note'],
             datasets: [{
-              data: [risk, 100 - risk],
-              backgroundColor: ['#ef4444', '#1e293b'],
+              label: 'Notes',
+              data: chartValues.length ? chartValues : [0],
+              backgroundColor: chartColors.length ? chartColors : ['#475569'],
               borderWidth: 0
             }]
           },
           options: {
             responsive: true,
             maintainAspectRatio: false,
-            cutout: '75%',
-            plugins: {
-              legend: { display: false }
-            }
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
           }
         });
       } else {
@@ -319,9 +332,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const mockData = initialResult(scanModuleKey);
         let result = mockData;
         if (scanModuleKey !== 'voice_suite') {
-          const image = selectedImageFile
-            ? await ImageCropper.getCroppedBlob()
-            : await CameraStream.captureFrame();
+          let image;
+          if (selectedImageFile) {
+            image = await ImageCropper.getCroppedBlob();
+          } else {
+            image = await CameraStream.captureFrame();
+            await CameraStream.freezeFrame(image);
+          }
           const response = await VisionPayApi.analyze(
             scanModuleKey, image, selectedImageFile?.name || 'camera-capture.jpg');
           result = { ...mockData, ...response, scanned: true, pending: false };
@@ -330,7 +347,9 @@ document.addEventListener('DOMContentLoaded', () => {
         moduleResults[scanModuleKey] = result;
         if (activeModuleKey === scanModuleKey) {
           renderModuleView(scanModuleKey, result);
-          if (result.detections?.length) CameraStream.drawBoundingBoxes(result.detections);
+          if (result.detections?.length) {
+            CameraStream.drawBoundingBoxes(result.detections, result.image_width, result.image_height);
+          }
           else CameraStream.clearCanvas();
           VoiceAssistant.speak(result.bangla_speech, speechFallback(scanModuleKey, result));
         }

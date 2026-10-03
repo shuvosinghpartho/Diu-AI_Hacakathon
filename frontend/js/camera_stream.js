@@ -33,6 +33,8 @@ const CameraStream = {
       if (this.stream) {
         this.stop();
       }
+      const frozenFrame = document.getElementById('frozenFramePreview');
+      if (frozenFrame) frozenFrame.remove();
       this.stream = await navigator.mediaDevices.getUserMedia({
         video: {
           width: { ideal: 1280 },
@@ -79,6 +81,40 @@ const CameraStream = {
     });
   },
 
+  async freezeFrame(blob) {
+    if (!(blob instanceof Blob) || !this.video?.parentElement) return;
+    const previous = document.getElementById('frozenFramePreview');
+    if (previous) previous.remove();
+
+    const preview = document.createElement('img');
+    preview.id = 'frozenFramePreview';
+    preview.alt = 'Captured camera frame';
+    preview.style.cssText = `
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      object-position: center;
+      background: #020617;
+      z-index: 2;
+    `;
+    const objectUrl = URL.createObjectURL(blob);
+    await new Promise((resolve, reject) => {
+      preview.onload = resolve;
+      preview.onerror = reject;
+      preview.src = objectUrl;
+      this.video.parentElement.appendChild(preview);
+    }).finally(() => URL.revokeObjectURL(objectUrl));
+
+    this.video.pause();
+    if (this.stream) {
+      this.stream.getTracks().forEach(track => track.stop());
+      this.stream = null;
+    }
+    this.isActive = false;
+  },
+
   stop() {
     if (this.stream) {
       this.stream.getTracks().forEach(track => track.stop());
@@ -86,6 +122,8 @@ const CameraStream = {
     }
     this.isActive = false;
     this.clearCanvas();
+    const frozenFrame = document.getElementById('frozenFramePreview');
+    if (frozenFrame) frozenFrame.remove();
     const placeholder = document.getElementById('cameraPlaceholder');
     if (placeholder) placeholder.style.display = 'flex';
   },
@@ -96,28 +134,31 @@ const CameraStream = {
     }
   },
 
-  drawBoundingBoxes(detections = []) {
+  drawBoundingBoxes(detections = [], sourceWidth = 640, sourceHeight = 360) {
     if (!this.ctx || !this.canvas) return;
     this.syncCanvasResolution();
     this.clearCanvas();
 
     if (!detections || detections.length === 0) return;
 
-    const scaleX = this.canvas.width / 640;
-    const scaleY = this.canvas.height / 360;
+    const scale = Math.min(this.canvas.width / sourceWidth, this.canvas.height / sourceHeight);
+    const renderedWidth = sourceWidth * scale;
+    const renderedHeight = sourceHeight * scale;
+    const offsetX = (this.canvas.width - renderedWidth) / 2;
+    const offsetY = (this.canvas.height - renderedHeight) / 2;
 
     detections.forEach(det => {
-      const rx = det.x * scaleX;
-      const ry = det.y * scaleY;
-      const rw = det.w * scaleX;
-      const rh = det.h * scaleY;
+      const rx = offsetX + det.x * scale;
+      const ry = offsetY + det.y * scale;
+      const rw = det.w * scale;
+      const rh = det.h * scale;
 
       this.ctx.strokeStyle = det.color || '#00e5ff';
       this.ctx.lineWidth = 3;
       this.ctx.strokeRect(rx, ry, rw, rh);
 
       this.ctx.fillStyle = det.color || '#00e5ff';
-      const fontSize = Math.max(12, Math.floor(13 * scaleX));
+      const fontSize = Math.max(12, Math.min(18, Math.floor(13 * scale)));
       this.ctx.font = `bold ${fontSize}px Plus Jakarta Sans, sans-serif`;
 
       const textWidth = this.ctx.measureText(det.label).width;
