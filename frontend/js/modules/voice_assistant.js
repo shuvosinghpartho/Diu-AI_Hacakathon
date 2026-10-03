@@ -8,6 +8,13 @@ const VoiceAssistant = {
       this.enabled = false;
       return false;
     }
+    
+    // Trigger voice loading in advance
+    window.speechSynthesis.getVoices();
+    window.speechSynthesis.onvoiceschanged = () => {
+        window.speechSynthesis.getVoices();
+    };
+    
     return true;
   },
 
@@ -38,8 +45,20 @@ const VoiceAssistant = {
     const utterance = new SpeechSynthesisUtterance(cleanText);
 
     utterance.lang = 'bn-BD';
-    utterance.rate = 0.95;
-    utterance.pitch = 1.0;
+    utterance.rate = 0.85; // Slightly slower for much clearer Bengali articulation
+    utterance.pitch = 1.05; // Slight pitch up for clarity
+    
+    // Select the best available Bengali voice (Google's is usually the clearest)
+    const voices = window.speechSynthesis.getVoices();
+    if (voices && voices.length > 0) {
+      let bnVoice = voices.find(v => (v.lang === 'bn-BD' || v.lang === 'bn-IN') && (v.name.includes('Google') || v.name.includes('Online')));
+      if (!bnVoice) {
+        bnVoice = voices.find(v => v.lang.includes('bn'));
+      }
+      if (bnVoice) {
+        utterance.voice = bnVoice;
+      }
+    }
 
     const transcriptEl = document.getElementById('speechTranscriptText');
     if (transcriptEl) {

@@ -6,8 +6,8 @@ const CameraStream = {
   isActive: false,
 
   init() {
-    this.video = document.getElementById('webcamFeed');
-    this.canvas = document.getElementById('detectionCanvas');
+    this.video = document.getElementById('videoElement');
+    this.canvas = document.getElementById('overlayCanvas');
     if (this.canvas) {
       this.ctx = this.canvas.getContext('2d');
     }
@@ -37,6 +37,7 @@ const CameraStream = {
       });
 
       this.video.srcObject = this.stream;
+      this.video.classList.remove('hidden');
       this.isActive = true;
 
       const placeholder = document.getElementById('cameraPlaceholder');
@@ -77,6 +78,7 @@ const CameraStream = {
     }
     this.isActive = false;
     this.clearCanvas();
+    if (this.video) this.video.classList.add('hidden');
     const placeholder = document.getElementById('cameraPlaceholder');
     if (placeholder) placeholder.style.display = 'flex';
   },
@@ -91,6 +93,7 @@ const CameraStream = {
     if (!this.ctx || !this.canvas) return;
     this.syncCanvasResolution();
     this.clearCanvas();
+    if (this.video) this.video.classList.add('hidden');
 
     if (!detections || detections.length === 0) return;
 

@@ -1,8 +1,34 @@
 document.addEventListener('DOMContentLoaded', () => {
+
+  // Mobile Menu Toggle
+  const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+  const closeMenuBtn = document.getElementById('closeMenuBtn');
+  const sidebar = document.getElementById('sidebar');
+  const mobileMenu = document.getElementById('mobileMenu');
+
+  if (mobileMenuBtn && closeMenuBtn && sidebar && mobileMenu) {
+    const toggleMenu = () => {
+      sidebar.classList.toggle('-translate-x-full');
+      if (mobileMenu.classList.contains('hidden')) {
+        mobileMenu.classList.remove('hidden');
+        setTimeout(() => mobileMenu.classList.remove('opacity-0'), 10);
+      } else {
+        mobileMenu.classList.add('opacity-0');
+        setTimeout(() => mobileMenu.classList.add('hidden'), 300);
+      }
+    };
+    mobileMenuBtn.addEventListener('click', toggleMenu);
+    closeMenuBtn.addEventListener('click', toggleMenu);
+    mobileMenu.addEventListener('click', toggleMenu);
+  }
+
+
+  
+
   VoiceAssistant.init();
   CameraStream.init();
 
-  let activeModuleKey = 'cash_count';
+  let activeModuleKey = document.body.dataset.module || 'dashboard';
   let assistiveModeEnabled = true;
   let selectedImageFile = null;
   let currentChartInstance = null;
@@ -17,12 +43,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('toastContainer');
     if (!container) return;
     const toast = document.createElement('div');
-    toast.className = `flex items-center gap-3 px-4 py-3 rounded-xl border shadow-lg transform transition-all duration-300 translate-y-0 opacity-100 ${isError ? 'bg-red-500/10 border-red-500/20 text-red-200 shadow-red-500/10' : 'bg-brand-500/10 border-brand-500/20 text-brand-100 shadow-brand-500/10'}`;
+    toast.className = `flex items-center gap-3 px-5 py-4 rounded-xl border shadow-xl transform transition-all duration-300 translate-y-0 opacity-100 ${isError ? 'bg-white border-red-200 text-red-600' : 'bg-white border-[#4F46E5]/30 text-gray-800'}`;
     const icon = document.createElement('i');
-    icon.className = `fa-solid ${isError ? 'fa-circle-exclamation text-red-400' : 'fa-circle-check text-brand-400'} text-lg`;
+    icon.className = `fa-solid ${isError ? 'fa-circle-exclamation text-red-500' : 'fa-circle-check text-[#4F46E5]'} text-xl`;
     const text = document.createElement('span');
     text.textContent = message;
-    text.className = "text-sm font-medium";
+    text.className = "text-base font-bold";
     toast.append(icon, text);
     container.appendChild(toast);
     
@@ -50,29 +76,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let html = '';
 
-    const statBoxClasses = "bg-dark-800/50 border border-white/5 rounded-xl p-4 flex flex-col gap-1";
-    const statBoxHighlightClasses = "bg-brand-500/10 border border-brand-500/20 rounded-xl p-4 flex flex-col gap-1 shadow-inner shadow-brand-500/10";
-    const statBoxDangerClasses = "bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex flex-col gap-1 shadow-inner shadow-red-500/10";
-    const labelClasses = "text-xs font-semibold text-gray-400 uppercase tracking-wider";
-    const valClasses = "text-xl font-bold text-gray-100";
+    const statBoxClasses = "bg-white border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] rounded-[16px] p-5 flex flex-col gap-1.5";
+    const statBoxHighlightClasses = "bg-[#EEF2FF] border border-[#4F46E5]/20 rounded-[16px] p-5 flex flex-col gap-1.5";
+    const statBoxDangerClasses = "bg-red-50 border border-red-100 rounded-[16px] p-5 flex flex-col gap-1.5";
+    const labelClasses = "text-[11px] font-bold text-gray-500 uppercase tracking-wider";
+    const valClasses = "text-xl md:text-2xl font-black text-gray-900 break-words tracking-tight";
 
     if (key === 'cash_count') {
       html = `
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div class="${statBoxHighlightClasses}">
-            <span class="${labelClasses}">মোট গণনাকৃত টাকা</span>
-            <div class="${valClasses} text-green-400">৳${data.total_amount.toLocaleString()}</div>
+            <span class="${labelClasses}">Total Cash</span>
+            <div class="${valClasses} text-emerald-600">৳${data.total_amount.toLocaleString()}</div>
           </div>
           <div class="${statBoxClasses}">
-            <span class="${labelClasses}">মোট নোট সংখ্যা</span>
+            <span class="${labelClasses}">Total Notes</span>
             <div class="${valClasses}">${data.total_notes} টি</div>
           </div>
           <div class="${statBoxClasses}">
-            <span class="${labelClasses}">শনাক্তকরণ নির্ভুলতা</span>
-            <div class="${valClasses} text-brand-400">${confidence}</div>
+            <span class="${labelClasses}">Accuracy</span>
+            <div class="${valClasses} text-[#4F46E5]">${confidence}</div>
           </div>
         </div>
-        <div class="mt-4 bg-dark-800/50 border border-white/5 rounded-xl p-4 relative" style="height: 250px;">
+        <div class="mt-5 bg-white border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] rounded-xl p-4 relative flex-1 min-h-[180px]">
            <canvas id="moduleChart"></canvas>
         </div>
       `;
@@ -80,30 +106,30 @@ document.addEventListener('DOMContentLoaded', () => {
       html = `
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div class="${statBoxDangerClasses}">
-            <span class="${labelClasses}">নোটের স্ট্যাটাস</span>
-            <div class="${valClasses} text-red-400">${data.verdict_label}</div>
+            <span class="${labelClasses}">Note Status</span>
+            <div class="${valClasses} text-red-600">${data.verdict_label}</div>
           </div>
           <div class="${statBoxClasses}">
-            <span class="${labelClasses}">কারচুপির সম্ভাবনা</span>
-            <div class="${valClasses} text-orange-400">${data.risk_score || confidence}</div>
+            <span class="${labelClasses}">Forgery Risk</span>
+            <div class="${valClasses} text-orange-600">${data.risk_score || confidence}</div>
           </div>
           <div class="${statBoxClasses}">
-            <span class="${labelClasses}">ইনসপেকশন চ্যানেল</span>
-            <div class="${valClasses} text-brand-400">Color-Shift & OVI</div>
+            <span class="${labelClasses}">Inspection Ch.</span>
+            <div class="${valClasses} text-[#4F46E5]">Color-Shift & OVI</div>
           </div>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-          <div class="bg-dark-800/50 border border-white/5 rounded-xl p-4 relative" style="height: 220px;">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-5 flex-1 min-h-[200px]">
+          <div class="bg-white border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] rounded-xl p-4 relative">
              <canvas id="moduleChart"></canvas>
           </div>
-          <div class="flex flex-col gap-2 overflow-y-auto" style="height: 220px;">
+          <div class="flex flex-col gap-2 overflow-y-auto pr-1">
             ${data.features_failed.map(f => `
-              <div class="flex justify-between items-center bg-red-500/5 border border-red-500/10 rounded-lg p-2.5">
-                <span class="flex items-center gap-3 text-xs text-gray-300">
-                  <i class="fa-solid fa-triangle-exclamation text-red-400"></i> 
+              <div class="flex justify-between items-center bg-white border border-red-200 rounded-xl p-3 shadow-sm">
+                <span class="flex items-center gap-3 text-sm font-semibold text-gray-900">
+                  <i class="fa-solid fa-circle-xmark text-red-500 text-lg"></i> 
                   <span>${f}</span>
                 </span>
-                <span class="text-[10px] font-semibold px-2 py-1 bg-red-500/20 text-red-400 rounded-md">ত্রুটি</span>
+                <span class="text-xs font-bold px-2.5 py-1 bg-red-100 text-red-700 rounded-full">ত্রুটি</span>
               </div>
             `).join('')}
           </div>
@@ -113,48 +139,49 @@ document.addEventListener('DOMContentLoaded', () => {
       html = `
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div class="${statBoxHighlightClasses}">
-            <span class="${labelClasses}">শনাক্তকৃত নম্বর</span>
-            <div class="${valClasses} text-brand-400">${data.extracted_number}</div>
+            <span class="${labelClasses}">Detected Num</span>
+            <div class="${valClasses} text-[#4F46E5]">${data.extracted_number}</div>
           </div>
           <div class="${statBoxClasses}">
-            <span class="${labelClasses}">টেলিকম নেটওয়ার্ক</span>
+            <span class="${labelClasses}">Telecom Net</span>
             <div class="${valClasses}">${data.carrier}</div>
           </div>
           <div class="${statBoxClasses}">
-            <span class="${labelClasses}">OCR কনফিডেন্স</span>
-            <div class="${valClasses} text-green-400">${confidence}</div>
+            <span class="${labelClasses}">OCR Conf.</span>
+            <div class="${valClasses} text-emerald-600">${confidence}</div>
           </div>
         </div>
-        <div class="mt-4 bg-dark-800/50 border border-white/5 rounded-xl p-4 relative" style="height: 200px;">
+        <div class="mt-5 bg-white border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] rounded-xl p-4 relative flex-1 min-h-[160px]">
            <canvas id="moduleChart"></canvas>
         </div>
-        <button id="btnCopyNumber" class="mt-4 w-full py-3 rounded-xl bg-dark-800 border border-white/10 text-gray-300 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-center gap-2 font-medium">
-          <i class="fa-regular fa-copy"></i> নম্বরটি ক্যাশ-ইন / সেন্ড মানি ফিল্ডে কপি করুন
-        </button>
+        <button id="btnCopyNumber" class="mt-5 w-full py-4 rounded-xl bg-white border border-gray-100 text-gray-900 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 font-bold shadow-sm shrink-0"><i class="fa-regular fa-copy"></i> Copy Number</button>
       `;
     } else if (key === 'doc_verify' || key === 'receipt_fake') {
       const isFake = key === 'receipt_fake';
       const statusBoxClasses = isFake ? statBoxDangerClasses : statBoxHighlightClasses;
-      const valColor = isFake ? "text-red-400" : "text-brand-400";
+      const valColor = isFake ? "text-red-600" : "text-[#4F46E5]";
       
       html = `
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div class="${statusBoxClasses}">
-            <span class="${labelClasses}">${isFake ? 'ফরেনসিক ফলাফল' : 'নথিপত্রের ধরন'}</span>
+            <span class="${labelClasses}">${isFake ? 'Forensics' : 'Document Type'}</span>
             <div class="${valClasses} ${valColor}">${isFake ? data.verdict_label : data.doc_type}</div>
           </div>
           <div class="${statBoxClasses}">
-            <span class="${labelClasses}">${isFake ? 'কারচুপি স্কোর' : 'যাচাইকরণের ফলাফল'}</span>
-            <div class="${valClasses} text-orange-400">${isFake ? data.risk_score : data.status_label}</div>
+            <span class="${labelClasses}">${isFake ? 'Risk Score' : 'Verification Result'}</span>
+            <div class="${valClasses} text-orange-600">${isFake ? data.risk_score : data.status_label}</div>
           </div>
         </div>
-        <div class="mt-4 bg-dark-800/50 border border-white/5 rounded-xl p-4 relative" style="height: 250px;">
+        <div class="mt-5 bg-white border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] rounded-xl p-4 relative flex-1 min-h-[180px]">
            <canvas id="moduleChart"></canvas>
         </div>
       `;
     }
 
-    if (dynamicContainer) dynamicContainer.innerHTML = html;
+    if (dynamicContainer) {
+        dynamicContainer.innerHTML = html;
+        dynamicContainer.classList.add('overflow-y-auto', 'pr-2', 'pb-2');
+    }
 
     // Chart.js rendering
     if (currentChartInstance) {
@@ -164,11 +191,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const ctx = document.getElementById('moduleChart');
     if (ctx) {
-      Chart.defaults.color = '#94a3b8';
+      Chart.defaults.color = '#64748B';
       Chart.defaults.font.family = "'Outfit', 'Hind Siliguri', sans-serif";
       
       if (key === 'cash_count') {
-        const labels = data.breakdown.map(b => b.note + " নোট");
+        const labels = data.breakdown.map(b => b.note + (' Note'));
         const chartData = data.breakdown.map(b => b.count);
         const colors = data.breakdown.map(b => b.color || '#22d3ee');
 
@@ -177,7 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
           data: {
             labels: labels,
             datasets: [{
-              label: 'নোট সংখ্যা',
+              label: document.body.getAttribute('data-lang') === 'en' ? 'Note Count' : 'Note Count',
               data: chartData,
               backgroundColor: colors,
               borderRadius: 6
@@ -190,7 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
               legend: { display: false }
             },
             scales: {
-              y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } },
+              y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
               x: { grid: { display: false } }
             }
           }
@@ -203,8 +230,10 @@ document.addEventListener('DOMContentLoaded', () => {
             labels: ['Risk Score', 'Authenticity'],
             datasets: [{
               data: [risk, 100 - risk],
-              backgroundColor: ['#ef4444', '#1e293b'],
-              borderWidth: 0
+              backgroundColor: ['#EF4444', '#E2E8F0'],
+              borderWidth: 2,
+              borderColor: '#ffffff',
+              borderRadius: [10, 0]
             }]
           },
           options: {
@@ -216,30 +245,81 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           }
         });
-      } else {
-         const score = parseFloat(data.confidence || 0.95) * 100;
-         currentChartInstance = new Chart(ctx, {
-          type: 'radar',
+      } else if (key === 'number_ocr') {
+        const score = parseFloat(data.confidence || 0.95) * 100;
+        currentChartInstance = new Chart(ctx, {
+          type: 'bar',
           data: {
-            labels: ['Edge Quality', 'Texture', 'Watermark', 'Text Alignment', 'Consistency'],
+            labels: ['Format Match', 'Digit Conf.', 'Carrier Val.', 'Region Check'],
             datasets: [{
-              label: 'Metrics',
-              data: [score, score-5, score+2, score-8, score],
-              backgroundColor: 'rgba(34, 211, 238, 0.2)',
-              borderColor: '#22d3ee',
-              pointBackgroundColor: '#06b6d4',
+              label: 'Accuracy %',
+              data: [score, score - 2, 100, score - 5],
+              backgroundColor: ['#4F46E5', '#10B981', '#3B82F6', '#8B5CF6'],
+              borderRadius: 6
             }]
           },
           options: {
             responsive: true,
             maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              y: { beginAtZero: true, max: 100, grid: { color: 'rgba(0,0,0,0.05)' } },
+              x: { grid: { display: false } }
+            }
+          }
+        });
+      } else if (key === 'doc_verify') {
+        const score = parseFloat(data.confidence || 0.95) * 100;
+        currentChartInstance = new Chart(ctx, {
+          type: 'radar',
+          data: {
+            labels: ['Hologram', 'Micro-print', 'Face Match', 'Font Integrity', 'Layout Align'],
+            datasets: [{
+              label: 'Verification Score',
+              data: [score, score-5, score+2, score-8, score],
+              backgroundColor: 'rgba(16, 185, 129, 0.15)',
+              borderColor: '#10B981',
+              pointBackgroundColor: '#10B981',
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
             scales: {
               r: {
-                angleLines: { color: 'rgba(255,255,255,0.1)' },
-                grid: { color: 'rgba(255,255,255,0.1)' },
-                pointLabels: { color: '#94a3b8' },
+                angleLines: { color: 'rgba(0,0,0,0.1)' },
+                grid: { color: 'rgba(0,0,0,0.1)' },
+                pointLabels: { color: '#64748B', font: { size: 10, family: 'Inter' } },
                 ticks: { display: false }
               }
+            }
+          }
+        });
+      } else if (key === 'receipt_fake') {
+        const riskScore = parseFloat(data.risk_score || 85.5);
+        currentChartInstance = new Chart(ctx, {
+          type: 'polarArea',
+          data: {
+            labels: ['Noise Variance', 'Pixel Uniformity', 'Font Render', 'Edge Sharpness', 'Luminance Delta'],
+            datasets: [{
+              data: [riskScore, riskScore-10, riskScore+5, riskScore-15, riskScore-5],
+              backgroundColor: [
+                'rgba(239, 68, 68, 0.7)',
+                'rgba(249, 115, 22, 0.7)',
+                'rgba(234, 179, 8, 0.7)',
+                'rgba(79, 70, 229, 0.7)',
+                'rgba(139, 92, 246, 0.7)'
+              ],
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              r: { ticks: { display: false }, grid: { color: 'rgba(0,0,0,0.05)' } }
             }
           }
         });
@@ -250,7 +330,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnCopy) {
       btnCopy.addEventListener('click', () => {
         navigator.clipboard.writeText(data.extracted_number);
-        showToast(`নম্বর ${data.extracted_number} কপি হয়েছে!`);
+        showToast(`Number ${data.extracted_number} copied!`);
       });
     }
 
@@ -263,30 +343,30 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.tab-item').forEach(button => {
     button.addEventListener('click', () => {
       document.querySelectorAll('.tab-item').forEach(b => {
-        b.classList.remove('glass-active', 'text-brand-400');
-        b.classList.add('text-gray-400');
+        b.classList.remove('glass-active', 'text-[#4F46E5]');
+        b.classList.add('text-gray-900Light');
       });
-      button.classList.remove('text-gray-400');
-      button.classList.add('glass-active', 'text-brand-400');
+      button.classList.remove('text-gray-900Light');
+      button.classList.add('glass-active', 'text-[#4F46E5]');
       activeModuleKey = button.getAttribute('data-module');
       renderModuleView(activeModuleKey);
 
       CameraStream.clearCanvas();
-      showToast(`${MOCK_MODULE_DATABASE[activeModuleKey].title} প্রস্তুত`);
+      showToast(`${MOCK_MODULE_DATABASE[activeModuleKey].title} is ready`);
     });
   });
 
   // Start Camera Action
-  const btnStartCam = document.getElementById('btnStartCamera');
+  const btnStartCam = document.getElementById('btnStartCam');
   if (btnStartCam) {
     btnStartCam.addEventListener('click', async () => {
       const active = await CameraStream.start();
       if (active) {
         selectedImageFile = null;
-        showToast("ক্যামেরা লাইভ ভিউ সক্রিয় হয়েছে");
+        showToast("Camera live view activated");
         VoiceAssistant.speak("ক্যামেরা সক্রিয় হয়েছে। নোট অথবা নথিপত্র ফ্রেমে রাখুন।");
       } else {
-        showToast("ক্যামেরা সক্রিয় করা যায়নি। অনুগ্রহ করে পারমিশন চেক করুন।");
+        showToast("Could not activate camera. Please check permissions.");
       }
     });
   }
@@ -296,7 +376,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnScan) {
     btnScan.addEventListener('click', async () => {
       if (activeModuleKey !== 'voice_suite' && !selectedImageFile && !CameraStream.isActive) {
-        showToast('স্ক্যানের আগে ক্যামেরা চালু করুন অথবা একটি ছবি আপলোড করুন।', true);
+        showToast('Please turn on the camera or upload an image before scanning.', true);
         return;
       }
 
@@ -336,10 +416,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         VoiceAssistant.speak(result.bangla_speech);
-        showToast(activeModuleKey === 'voice_suite' ? 'ভয়েস পরীক্ষা সম্পন্ন হয়েছে' : 'API বিশ্লেষণ সফলভাবে সম্পন্ন হয়েছে');
+        showToast(activeModuleKey === 'voice_suite' ? 'Voice test complete' : 'API analysis completed successfully');
       } catch (error) {
         console.error('[VisionPay] Scan failed:', error);
-        showToast(error.message || 'স্ক্যান সম্পন্ন করা যায়নি।', true);
+        showToast(error.message || 'Scan could not be completed.', true);
       } finally {
         if (cameraWrapper) cameraWrapper.classList.remove('scanning');
         btnScan.disabled = false;
@@ -370,26 +450,26 @@ document.addEventListener('DOMContentLoaded', () => {
       assistiveModeEnabled = VoiceAssistant.toggle();
       if (assistiveModeEnabled) {
         btnAssistive.innerHTML = `<i class="fa-solid fa-universal-access"></i> <span class="hidden sm:inline">Assistive Audio</span>`;
-        btnAssistive.className = 'flex items-center gap-2 px-4 py-2 rounded-lg bg-green-500/10 text-green-400 border border-green-500/20 hover:bg-green-500/20 transition-all text-sm font-medium';
-        showToast("দৃষ্টি প্রতিবন্ধী ভয়েস অ্যাসিস্ট্যান্ট চালু করা হয়েছে");
-        VoiceAssistant.speak("অ্যাসিস্টিভ অডিও মোড চালু করা হয়েছে।");
+        btnAssistive.className = 'flex items-center gap-2 px-4 py-2 rounded-lg bg-green-500/10 text-emerald-600 border border-green-500/20 hover:bg-green-500/20 transition-all text-sm font-medium';
+        showToast("Voice assistant activated");
+        VoiceAssistant.speak("Assistive audio mode activated.");
       } else {
         btnAssistive.innerHTML = `<i class="fa-solid fa-volume-xmark"></i> <span class="hidden sm:inline">Audio Off</span>`;
-        btnAssistive.className = 'flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-all text-sm font-medium';
-        showToast("ভয়েস অ্যাসিস্ট্যান্ট বন্ধ করা হয়েছে", true);
+        btnAssistive.className = 'flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500/10 text-red-600 border border-red-500/20 hover:bg-red-500/20 transition-all text-sm font-medium';
+        showToast("Voice assistant deactivated", true);
       }
     });
   }
 
   // Local File Upload Handler
-  const fileUploadInput = document.getElementById('fileInputUpload');
+  const fileUploadInput = document.getElementById('fileUpload');
   if (fileUploadInput) {
     fileUploadInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
       if (!file.type.startsWith('image/')) {
         selectedImageFile = null;
-        showToast('অনুগ্রহ করে একটি বৈধ ছবির ফাইল নির্বাচন করুন।', true);
+        showToast('Please select a valid image file.', true);
         fileUploadInput.value = '';
         return;
       }
@@ -416,10 +496,12 @@ document.addEventListener('DOMContentLoaded', () => {
         preview.src = event.target.result;
 
         const placeholder = document.getElementById('cameraPlaceholder');
+        const vid = document.getElementById('videoElement');
+        if (vid) vid.classList.add('hidden');
         if (placeholder) placeholder.style.display = 'none';
 
         CameraStream.clearCanvas();
-        showToast("ফাইল লোড হয়েছে। 'Execute AI Scan' চাপুন।");
+        showToast("File loaded. Press 'Verify Information'.");
         VoiceAssistant.speak("নথির ছবি লোড হয়েছে। স্ক্যান বোতাম চাপুন।");
       };
       reader.readAsDataURL(file);
@@ -427,5 +509,5 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Initial View
-  renderModuleView('cash_count');
+  renderModuleView(activeModuleKey);
 });
