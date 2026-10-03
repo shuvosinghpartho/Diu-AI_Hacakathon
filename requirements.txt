@@ -9,3 +9,5 @@ motor>=3.3.0
 
 google-generativeai
 python-dotenv
+easyocr
+torch

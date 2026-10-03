@@ -18,6 +18,15 @@ class OCRService:
         self._reader = None
         self._reader_lock = threading.Lock()
 
+    def init_model(self):
+        with self._reader_lock:
+            if self._reader is None:
+                try:
+                    import easyocr
+                    self._reader = easyocr.Reader(['bn', 'en'], gpu=False, verbose=False)
+                except Exception as exc:
+                    print("OCR Init error:", exc)
+
     def read_text(self, image_bytes):
         # Cache the CPU model and serialize inference across concurrent uploads.
         with self._reader_lock:

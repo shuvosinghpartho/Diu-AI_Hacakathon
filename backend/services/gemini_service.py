@@ -32,6 +32,9 @@ class GeminiService:
             raise ValueError("GEMINI_API_KEY is not set in .env file.")
 
         image = Image.open(io.BytesIO(image_bytes))
+        # Resize image to prevent timeouts on large camera captures
+        max_size = (800, 800)
+        image.thumbnail(max_size, Image.Resampling.LANCZOS)
 
         prompts = {
             "cash_count": """
@@ -112,7 +115,7 @@ Return ONLY a JSON object:
                     model_name=os.getenv("OCR_GEMINI_MODEL", "gemini-2.5-flash"),
                     generation_config=self.generation_config,
                 )
-            response = model.generate_content([image, prompt], request_options={"timeout": 30})
+            response = model.generate_content([image, prompt], request_options={"timeout": 60})
             text = response.text.strip()
             if text.startswith("```json"):
                 text = text[7:]

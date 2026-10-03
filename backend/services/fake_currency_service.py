@@ -38,7 +38,7 @@ class FakeCurrencyService:
     def __init__(self, model_path: Path | None = None) -> None:
         root = Path(__file__).resolve().parents[2]
         self.model_path = model_path or root / "Model" / "my_model.h5"
-        self.confidence_threshold = float(os.getenv("CURRENCY_CONFIDENCE_THRESHOLD", "0.80"))
+        self.confidence_threshold = float(os.getenv("CURRENCY_CONFIDENCE_THRESHOLD", "0.60"))
         self._model = None
         self._model_lock = Lock()
 

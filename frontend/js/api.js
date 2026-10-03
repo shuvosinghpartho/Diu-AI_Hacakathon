@@ -6,7 +6,8 @@ const VisionPayApi = {
     fake_note: '/api/v1/currency/verify-note',
     number_ocr: '/api/v1/ocr/extract-number',
     doc_verify: '/api/v1/document/verify',
-    receipt_fake: '/api/v1/receipt/analyze-screenshot'
+    receipt_fake: '/api/v1/receipt/analyze-screenshot',
+    dashboard_stats: '/api/v1/dashboard/stats'
   },
 
   async analyze(moduleKey, imageBlob, filename = 'capture.jpg') {
@@ -41,5 +42,16 @@ const VisionPayApi = {
     }
 
     return payload;
+  },
+
+  async getDashboardStats() {
+    try {
+      const response = await fetch(`${this.baseUrl}${this.endpoints.dashboard_stats}`);
+      if (!response.ok) return null;
+      return await response.json();
+    } catch (e) {
+      console.error("Dashboard fetch error:", e);
+      return null;
+    }
   }
 };

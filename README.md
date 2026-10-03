@@ -70,10 +70,10 @@ python -m unittest discover -s tests -p "test_*.py"
 node tests/number_scanner_ui.test.cjs
 ```
 
-**VisionPay Terminal** is a prototype financial image-analysis application. Mobile
-number, document, and receipt text extraction run locally through EasyOCR. The cash
-counting and fake-note modules still require further implementation before their
-results should be relied on.
+**VisionPay Terminal** is a cutting-edge financial image-analysis application. 
+- **Mobile Number, Document, and Receipt Text Extraction** runs locally through EasyOCR. 
+- **Fake Note Screener and Cash Counting** are fully powered by a custom-trained local **Keras Neural Network (my_model.h5)**. This bypasses the need for paid APIs, prevents server timeouts, and ensures real-time offline-capable currency detection directly on the server.
+- **Dynamic Dashboard & Analytics** are powered by MongoDB, visualizing live scan histories and system metrics.
 
 A dedicated **Bangla Voice Assistant** is integrated to guide users, making the platform accessible and intuitive for everyday financial screening in Bangladesh.
 

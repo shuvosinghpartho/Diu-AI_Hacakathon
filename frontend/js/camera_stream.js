@@ -53,6 +53,41 @@ const CameraStream = {
     }
   },
 
+
+  async freezeFrame(blob) {
+    if (!(blob instanceof Blob) || !this.video?.parentElement) return;
+    const previous = document.getElementById('frozenFramePreview');
+    if (previous) previous.remove();
+
+    const preview = document.createElement('img');
+    preview.id = 'frozenFramePreview';
+    preview.alt = 'Captured camera frame';
+    preview.style.cssText = `
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      background: #F8FAFC;
+      z-index: 2;
+    `;
+    const objectUrl = URL.createObjectURL(blob);
+    await new Promise((resolve, reject) => {
+      preview.onload = resolve;
+      preview.onerror = reject;
+      preview.src = objectUrl;
+      this.video.parentElement.appendChild(preview);
+    }).finally(() => URL.revokeObjectURL(objectUrl));
+
+    this.video.pause();
+    if (this.stream) {
+      this.stream.getTracks().forEach(track => track.stop());
+      this.stream = null;
+    }
+    this.isActive = false;
+  },
+
   async captureFrame() {
     if (!this.isActive || !this.video || !this.video.videoWidth || !this.video.videoHeight) {
       throw new Error('Start the camera and wait for the preview before scanning.');
@@ -78,6 +113,8 @@ const CameraStream = {
     }
     this.isActive = false;
     this.clearCanvas();
+    const frozenFrame = document.getElementById('frozenFramePreview');
+    if (frozenFrame) frozenFrame.remove();
     if (this.video) this.video.classList.add('hidden');
     const placeholder = document.getElementById('cameraPlaceholder');
     if (placeholder) placeholder.style.display = 'flex';
@@ -93,6 +130,8 @@ const CameraStream = {
     if (!this.ctx || !this.canvas) return;
     this.syncCanvasResolution();
     this.clearCanvas();
+    const frozenFrame = document.getElementById('frozenFramePreview');
+    if (frozenFrame) frozenFrame.remove();
     if (this.video) this.video.classList.add('hidden');
 
     if (!detections || detections.length === 0) return;

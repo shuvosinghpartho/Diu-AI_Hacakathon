@@ -21,19 +21,32 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from .routes.dashboard import router as dashboard_router
+
 app.include_router(cash_router)
 app.include_router(fake_currency_router)
 app.include_router(ocr_router)
 app.include_router(doc_router)
 app.include_router(receipt_router)
+app.include_router(dashboard_router)
 
 from .database import db, MONGODB_URL
 from motor.motor_asyncio import AsyncIOMotorClient
+
+from fastapi.concurrency import run_in_threadpool
+import asyncio
+from .services.fake_currency_service import fake_currency_service
+from .services.ocr_service import ocr_service
 
 @app.on_event("startup")
 async def startup_db_client():
     db.client = AsyncIOMotorClient(MONGODB_URL)
     app.mongodb = db.client.visionpay
+    
+    # Pre-load ML models in the background to prevent slow first-scans
+    print("Pre-loading ML Models in background...")
+    asyncio.create_task(run_in_threadpool(fake_currency_service._load_model))
+    asyncio.create_task(run_in_threadpool(ocr_service.init_model))
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

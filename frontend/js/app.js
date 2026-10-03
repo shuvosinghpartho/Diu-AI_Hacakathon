@@ -27,6 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   VoiceAssistant.init();
   CameraStream.init();
+  if (typeof ImageCropper !== 'undefined') ImageCropper.init(document.getElementById('cameraWrapper'));
 
   let activeModuleKey = document.body.dataset.module || 'dashboard';
   let assistiveModeEnabled = true;
@@ -362,6 +363,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnStartCam.addEventListener('click', async () => {
       const active = await CameraStream.start();
       if (active) {
+        if (typeof ImageCropper !== 'undefined') ImageCropper.clear();
         selectedImageFile = null;
         showToast("Camera live view activated");
         VoiceAssistant.speak("ক্যামেরা সক্রিয় হয়েছে। নোট অথবা নথিপত্র ফ্রেমে রাখুন।");
@@ -397,8 +399,14 @@ document.addEventListener('DOMContentLoaded', () => {
         let result = mockData;
 
         if (activeModuleKey !== 'voice_suite') {
-          const image = selectedImageFile || await CameraStream.captureFrame();
-          const response = await VisionPayApi.analyze(activeModuleKey, image, image.name || 'camera-capture.jpg');
+          let image;
+          if (selectedImageFile) {
+            image = typeof ImageCropper !== 'undefined' ? await ImageCropper.getCroppedBlob() : selectedImageFile;
+          } else {
+            image = await CameraStream.captureFrame();
+            if (CameraStream.freezeFrame) await CameraStream.freezeFrame(image);
+          }
+          const response = await VisionPayApi.analyze(activeModuleKey, image, selectedImageFile?.name || 'camera-capture.jpg');
           result = {
             ...mockData,
             ...response,
@@ -469,6 +477,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!file) return;
       if (!file.type.startsWith('image/')) {
         selectedImageFile = null;
+        if (typeof ImageCropper !== 'undefined') ImageCropper.clear();
         showToast('Please select a valid image file.', true);
         fileUploadInput.value = '';
         return;
@@ -493,6 +502,7 @@ document.addEventListener('DOMContentLoaded', () => {
           `;
           if (cameraWrapper) cameraWrapper.appendChild(preview);
         }
+        preview.onload = () => { if (typeof ImageCropper !== 'undefined') ImageCropper.setImage(file, preview); };
         preview.src = event.target.result;
 
         const placeholder = document.getElementById('cameraPlaceholder');
