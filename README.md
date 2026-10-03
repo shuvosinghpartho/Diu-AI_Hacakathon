@@ -22,7 +22,58 @@
 
 ## 🌟 About The Project
 
-**VisionPay Terminal** is an advanced AI-powered web application designed to act as a complete financial forensics tool. It leverages **Google's Gemini 3.5 Flash** to analyze images of currency, receipts, and identity documents in real-time. Whether it's detecting fake currency, extracting text, or verifying documents, VisionPay handles it seamlessly with an edge-inspired, glassmorphic UI.
+### Mobile number OCR implementation
+
+The Number OCR tab reads an uploaded image or camera frame locally with EasyOCR
+on the CPU, then validates the transcribed numbers on the server. No Gemini API
+key or paid OCR service is needed. It supports Bangla/English digits, local
+11-digit numbers, and `+880`, `880`, or `00880` country codes. Duplicate numbers are
+merged; multiple numbers can be selected individually for copying. Unreadable or
+invalid numbers produce an empty result rather than a sample number.
+
+Install the local OCR dependencies. On Windows, from the repository root:
+
+```powershell
+py -m venv venv
+.\venv\Scripts\python.exe -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+.\venv\Scripts\python.exe -m pip install -r requirements.txt -r requirements-ocr.txt
+.\venv\Scripts\python.exe -m uvicorn backend.app:app --reload --host 127.0.0.1 --port 8000
+```
+
+The first scan downloads the Bangla/English OCR models into `~/.EasyOCR/model`,
+so it requires internet and takes longer. Later scans run locally using the cached
+models. Clear printed numbers work best; handwriting is not reliably supported.
+Crop closely around numbers if detection misses them. OCR checks the number's
+format, not whether the text is actually a phone number: an account or ID with
+the same format can match too. Always compare the result with the image.
+
+Uploads are limited to 10 MB and 20 megapixels.
+OCR confidence is model-reported, not measured accuracy. Operators are inferred
+from the original number prefix; mobile number portability can change the current
+network. This feature does not verify ownership or whether a number is active.
+
+### Local document and receipt OCR
+
+The Document tab uses the same local OCR model to recognize Bangladesh NID and
+passport text. It extracts supported fields such as name, parent names, birth date,
+NID number, and passport number. The Receipt tab extracts the payment provider,
+transaction ID, amount, date/time, sender, and receiver when those labels are visible.
+
+These features transcribe text and validate basic formats only. They do not query a
+government, bank, bKash, Nagad, or other provider database, so they cannot certify a
+document, confirm a payment, or determine whether a screenshot was edited. Always
+compare OCR output with the image and verify important transactions at the source.
+
+Run checks after installing dependencies and `httpx`:
+```bash
+python -m unittest discover -s tests -p "test_*.py"
+node tests/number_scanner_ui.test.cjs
+```
+
+**VisionPay Terminal** is a prototype financial image-analysis application. Mobile
+number, document, and receipt text extraction run locally through EasyOCR. The cash
+counting and fake-note modules still require further implementation before their
+results should be relied on.
 
 A dedicated **Bangla Voice Assistant** is integrated to guide users, making the platform accessible and intuitive for everyday financial screening in Bangladesh.
 
@@ -32,9 +83,9 @@ A dedicated **Bangla Voice Assistant** is integrated to guide users, making the 
 
 - 💵 **Smart Cash Counting:** Analyzes an image of multiple currency notes and calculates the total amount instantly.
 - 🕵️ **Fake Note Detection:** Scans Bangladeshi Taka (BDT) notes for anomalies, security threads, and watermarks to detect counterfeit currency.
-- 📄 **Document Verification:** Verifies the authenticity of Identity Cards (NID) and Passports.
-- 🧾 **Receipt Forensics:** Extracts data from bills and receipts, detecting tampering or anomalies in the text.
-- 🔢 **Number OCR:** Accurately extracts phone numbers, account numbers, and specific numerical data from handwritten or printed images.
+- 📄 **Document OCR:** Extracts supported fields from NID and passport images without claiming authenticity.
+- 🧾 **Receipt OCR:** Extracts structured payment fields without claiming payment or screenshot authenticity.
+- 🔢 **Number OCR:** Extracts Bangladesh mobile numbers from printed images locally with EasyOCR, with Bangla and English digit support.
 - 🎙️ **Bangla Voice Assistant:** Provides accessible auditory feedback and verdicts in Bangla.
 - 📸 **Live Camera Integration:** Scan notes and documents directly using your device's webcam/mobile camera.
 
@@ -49,7 +100,8 @@ A dedicated **Bangla Voice Assistant** is integrated to guide users, making the 
 
 ### Backend
 - **FastAPI (Python):** High-performance backend API routing and image handling.
-- **Google Generative AI (Gemini 3.5 Flash):** Core AI engine for image analysis, OCR, and reasoning.
+- **EasyOCR:** Local, CPU-based mobile number OCR with no API fee.
+- **Google Generative AI:** Image analysis for the other modules.
 - **Motor (MongoDB):** Asynchronous database driver for saving scan history and analytics.
 - **Pillow (PIL):** Image processing and handling before sending to the AI model.
 
@@ -58,9 +110,9 @@ A dedicated **Bangla Voice Assistant** is integrated to guide users, making the 
 ## ⚙️ Installation
 
 ### Prerequisites
-- Python 3.9+
+- Python 3.11 or 3.12 for local number OCR
 - MongoDB (Running locally or MongoDB Atlas)
-- Google Gemini API Key
+- Google Gemini API Key for the other modules (not needed for Number OCR)
 
 ### Setup Instructions
 
@@ -109,7 +161,7 @@ A dedicated **Bangla Voice Assistant** is integrated to guide users, making the 
 📦 VisionPay-Terminal
  ┣ 📂 backend
  ┃ ┣ 📂 routes          # FastAPI API Endpoints (count, fake_currency, etc.)
- ┃ ┣ 📂 services        # Business Logic & Gemini AI Integration Wrapper
+ ┃ ┣ 📂 services        # Local OCR, field parsing, and AI integration
  ┃ ┣ 📜 app.py          # FastAPI application entry point
  ┃ ┗ 📜 database.py     # MongoDB connection setup
  ┣ 📂 frontend

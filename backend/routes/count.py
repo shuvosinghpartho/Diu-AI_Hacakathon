@@ -32,13 +32,18 @@ class CashCountResponse(BaseModel):
 
 @router.post("/count", response_model=CashCountResponse)
 async def count_currency(file: UploadFile = File(...), db: AsyncIOMotorDatabase = Depends(get_database)):
-    if not file.content_type.startswith("image/"):
+    if not (file.content_type or "").startswith("image/"):
         raise HTTPException(status_code=400, detail="Invalid file type. Image required.")
         
     image_bytes = await file.read()
 
     # Process image dynamically using Gemini
-    analysis_result = gemini_service.analyze_image(image_bytes, "cash_count")
+    try:
+        analysis_result = gemini_service.analyze_image(image_bytes, "cash_count")
+    except ValueError as exc:
+        raise HTTPException(status_code=503, detail="Cash counting is unavailable: Gemini is not configured.") from exc
+    if analysis_result.get("verdict") == "ERROR":
+        raise HTTPException(status_code=502, detail="Cash counting provider failed. Try again later.")
 
     response = CashCountResponse(
         success=True,
