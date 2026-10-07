@@ -1,11 +1,13 @@
 const MOCK_MODULE_DATABASE = {
   cash_count: {
     id: "cash_count",
-    title: "1. Real-Time Cash Counter (YOLOv8 Engine)",
-    desc: "ক্যামেরা ফ্রেমে থাকা বাংলাদেশী টাকার নোট শনাক্ত ও মোট পরিমাণ তাৎক্ষণিক গণনা।",
-    badge: "PRECISION: 98.4%",
+    title: "1. Single-Image Stack Counter",
+    desc: "Counts exposed banknote layers locally from one clear side image.",
+    badge: "LOCAL VISION",
     total_notes: 4,
     total_amount: 2500,
+    stack_depth_px: 75,
+    layer_pitch_px: 2.4,
     breakdown: [
       { note: "৳1000", count: 2, subtotal: 2000, color: "#10b981" },
       { note: "৳500", count: 1, subtotal: 500, color: "#00e5ff" },

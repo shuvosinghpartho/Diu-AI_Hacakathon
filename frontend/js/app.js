@@ -84,19 +84,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const valClasses = "text-xl md:text-2xl font-black text-gray-900 break-words tracking-tight";
 
     if (key === 'cash_count') {
+      const hasAmount = Number(data.total_amount) > 0;
       html = `
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div class="${statBoxHighlightClasses}">
-            <span class="${labelClasses}">Total Cash</span>
-            <div class="${valClasses} text-emerald-600">৳${data.total_amount.toLocaleString()}</div>
+            <span class="${labelClasses}">${hasAmount ? 'Total Cash' : 'Stack Depth'}</span>
+            <div class="${valClasses} text-emerald-600">${hasAmount ? `৳${data.total_amount.toLocaleString()}` : `${Number(data.stack_depth_px || 0).toFixed(1)} px`}</div>
           </div>
           <div class="${statBoxClasses}">
             <span class="${labelClasses}">Total Notes</span>
-            <div class="${valClasses}">${data.total_notes} টি</div>
+            <div class="${valClasses}">${data.total_notes}</div>
           </div>
           <div class="${statBoxClasses}">
-            <span class="${labelClasses}">Accuracy</span>
+            <span class="${labelClasses}">Layer Evidence</span>
             <div class="${valClasses} text-[#4F46E5]">${confidence}</div>
+          </div>
+          <div class="${statBoxClasses}">
+            <span class="${labelClasses}">Layer Pitch</span>
+            <div class="${valClasses}">${Number(data.layer_pitch_px || 0).toFixed(2)} px</div>
           </div>
         </div>
         <div class="mt-5 bg-white border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] rounded-xl p-4 relative flex-1 min-h-[180px]">
@@ -395,6 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       try {
+        const scanStartedAt = performance.now();
         const mockData = MOCK_MODULE_DATABASE[activeModuleKey];
         let result = mockData;
 
@@ -410,6 +416,7 @@ document.addEventListener('DOMContentLoaded', () => {
           result = {
             ...mockData,
             ...response,
+            badge: `${Math.round(performance.now() - scanStartedAt)} ms`,
             confidence: typeof response.confidence === 'number'
               ? `${(response.confidence * 100).toFixed(1)}%`
               : response.confidence

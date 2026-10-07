@@ -63,19 +63,33 @@ async def verify_currency_note(file: UploadFile = File(...), db: AsyncIOMotorDat
     is_recognized = analysis_result.get("verdict") == "RECOGNIZED_CURRENCY"
     total_amount = analysis_result.get("total_amount", 0)
     total_notes = analysis_result.get("total_notes", 0)
+    confidence = analysis_result.get("confidence", 0.0)
     
     if is_recognized and total_notes > 0:
-        final_verdict = "AUTHENTIC_NOTE"
-        final_label = "আসল নোট"
-        risk_score = "0%"
-        features_failed = []
-        combined_speech = f"এটি {total_amount} টাকার একটি আসল নোট।"
+        if confidence > 0.85:
+            final_verdict = "AUTHENTIC_NOTE"
+            final_label = "আসল নোট"
+            risk_score = f"{round((1 - confidence) * 100)}%"
+            features_failed = []
+            combined_speech = f"সফলভাবে যাচাই করা হয়েছে। এটি {total_amount} টাকার একটি আসল নোট।"
+        elif confidence > 0.60:
+            final_verdict = "SUSPICIOUS_NOTE"
+            final_label = "সন্দেহজনক নোট"
+            risk_score = f"{round((1 - confidence) * 100)}%"
+            features_failed = ["নোটের মান কিছুটা অস্পষ্ট (Note quality unclear)", "নিরাপত্তা সুতা যাচাই করুন (Verify security thread)"]
+            combined_speech = f"সতর্কতা: {total_amount} টাকার নোটটি কিছুটা সন্দেহজনক। দয়া করে নিরাপত্তা সুতা এবং জলছাপ নিজে যাচাই করুন।"
+        else:
+            final_verdict = "FAKE_NOTE"
+            final_label = "জাল নোট"
+            risk_score = "HIGH"
+            features_failed = ["জলছাপ অনুপস্থিত (Watermark missing)", "নিরাপত্তা সুতা ত্রুটিপূর্ণ (Security thread error)", "কাগজের মান সন্দেহজনক (Paper quality suspicious)"]
+            combined_speech = f"বিপদ! {total_amount} টাকার নোটটি জাল হতে পারে। এটি গ্রহণ করবেন না।"
     else:
-        final_verdict = "SUSPECT_NOTE"
-        final_label = "জাল / সন্দেহজনক নোট"
-        risk_score = "98%"
-        features_failed = ["জলছাপ অনুপস্থিত (Watermark missing)", "নিরাপত্তা সুতা ত্রুটিপূর্ণ (Security thread error)"]
-        combined_speech = "সতর্কতা! এটি একটি জাল নোট বা অন্য কিছু। কোনো আসল নোট শনাক্ত করা যায়নি।"
+        final_verdict = "NO_NOTE_FOUND"
+        final_label = "কোনো নোট শনাক্ত করা যায়নি"
+        risk_score = "N/A"
+        features_failed = ["নোট চেনা যায়নি (Unrecognized)"]
+        combined_speech = "ছবিতে কোনো আসল নোট শনাক্ত করা যায়নি। আবার চেষ্টা করুন।"
 
     response = FakeNoteResponse(
         success=True,

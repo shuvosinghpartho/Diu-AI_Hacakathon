@@ -128,6 +128,20 @@ class FieldExtractionService:
         elif nid:
             fields["nid_number"] = nid
 
+        if not readings:
+            bangla_speech = "ছবিতে পড়ার মতো লেখা পাওয়া যায়নি।"
+        else:
+            bn_doc_name = "নথি"
+            if doc_type == "Bangladesh National ID":
+                bn_doc_name = "জাতীয় পরিচয়পত্র"
+            elif doc_type == "Bangladesh Passport":
+                bn_doc_name = "পাসপোর্ট"
+                
+            if "name" in fields:
+                bangla_speech = f"{bn_doc_name} থেকে নাম পড়া হয়েছে, {fields['name']}। মোট {len(fields)}টি তথ্য পাওয়া গেছে।"
+            else:
+                bangla_speech = f"{bn_doc_name} থেকে {len(fields)}টি তথ্য পড়া হয়েছে। ছবির সঙ্গে মিলিয়ে দেখুন।"
+
         return {
             "doc_type": doc_type,
             "status": "OCR_EXTRACTED" if readings else "NO_TEXT_FOUND",
@@ -137,8 +151,7 @@ class FieldExtractionService:
             "raw_text": lines,
             "fields_verified": list(fields.keys()),
             "detections": [],
-            "bangla_speech": (f"নথি থেকে {len(fields)}টি তথ্য পড়া হয়েছে। ছবির সঙ্গে মিলিয়ে দেখুন।"
-                              if readings else "ছবিতে পড়ার মতো লেখা পাওয়া যায়নি।"),
+            "bangla_speech": bangla_speech,
         }
 
     def parse_receipt(self, readings):
@@ -236,17 +249,75 @@ class FieldExtractionService:
             if transaction_type == "Loan Repayment" and name_candidates:
                 fields["bank_name"] = name_candidates[0]
 
+        bangla_tamper_reasons = []
+        tamper_flags = []
+        if transaction_id and provider:
+            trx_len = len(transaction_id)
+            if provider.lower() == "bkash" and (trx_len < 9 or trx_len > 11):
+                tamper_flags.append(f"Suspicious bKash TrxID length ({trx_len}). Expected 10 chars.")
+                bangla_tamper_reasons.append("বিকাশ ট্রানজেকশন আইডি সঠিক নয়।")
+            elif provider.lower() == "nagad" and trx_len != 8:
+                tamper_flags.append(f"Suspicious Nagad TrxID length ({trx_len}). Expected 8 chars.")
+                bangla_tamper_reasons.append("নগদ ট্রানজেকশন আইডি সঠিক নয়।")
+        
+        expected_charge = 0
+        if amount:
+            try:
+                amt_val = float(amount)
+                
+                # MFS Intelligent Charge Forensics
+                if transaction_type == "Cash Out" and provider:
+                    if provider.lower() == "bkash":
+                        expected_charge = round(amt_val * 0.0185, 2)
+                    elif provider.lower() == "nagad":
+                        expected_charge = round(amt_val * 0.015, 2)
+                    
+                    if expected_charge > 0:
+                        fields["expected_charge"] = f"{expected_charge} BDT"
+                
+                if transaction_type == "Send Money" and amt_val > 25000:
+                    tamper_flags.append("Amount exceeds standard daily Send Money limits (25,000 BDT).")
+                    bangla_tamper_reasons.append("টাকার পরিমাণ পঁচিশ হাজার টাকার বেশি, যা সাধারণ লিমিটের বাইরে।")
+                elif transaction_type == "Cash Out" and amt_val > 25000:
+                    tamper_flags.append("Amount exceeds standard daily Cash Out limits (25,000 BDT).")
+                    bangla_tamper_reasons.append("টাকার পরিমাণ সাধারণ ক্যাশ আউট লিমিটের বাইরে।")
+            except ValueError:
+                pass
+
+        if transaction_type == "Cash Out" and "agent_number" not in fields and "receiver" in fields:
+            tamper_flags.append("Cash Out must be directed to an Agent, but the receiver format looks like a personal number or was not recognized properly.")
+            bangla_tamper_reasons.append("ক্যাশ আউট এজেন্টের নাম্বারে করা হয়নি।")
+
+        if tamper_flags:
+            verdict = "SUSPICIOUS_RECEIPT"
+            verdict_label = "Fraud Warning: Tampered or Invalid Receipt"
+            risk_score = "HIGH"
+            reason_text = " ".join(bangla_tamper_reasons)
+            bangla_speech = f"সতর্কতা: এটি একটি ভুয়া স্ক্রিনশট হতে পারে। {reason_text}"
+        elif readings:
+            verdict = "FIELDS_EXTRACTED"
+            verdict_label = "Receipt fields extracted; payment not verified"
+            risk_score = "LOW"
+            if expected_charge > 0 and provider:
+                bangla_speech = f"রসিদ পড়া হয়েছে। {provider} এর ক্যাশ আউট চার্জ {expected_charge} টাকা হওয়া উচিত।"
+            else:
+                bangla_speech = f"রসিদ থেকে {len(fields)}টি তথ্য পড়া হয়েছে। লেনদেনটি আলাদাভাবে যাচাই করুন।"
+        else:
+            verdict = "NO_TEXT_FOUND"
+            verdict_label = "No readable text found"
+            risk_score = "N/A"
+            bangla_speech = "রসিদে পড়ার মতো লেখা পাওয়া যায়নি।"
+
         return {
-            "verdict": "FIELDS_EXTRACTED" if readings else "NO_TEXT_FOUND",
-            "verdict_label": "Receipt fields extracted; payment not verified" if readings else "No readable text found",
-            "risk_score": "N/A",
+            "verdict": verdict,
+            "verdict_label": verdict_label,
+            "risk_score": risk_score,
             "confidence": confidence,
             "extracted_fields": fields,
             "raw_text": lines,
-            "tamper_flags": [],
+            "tamper_flags": tamper_flags,
             "detections": [],
-            "bangla_speech": (f"রসিদ থেকে {len(fields)}টি তথ্য পড়া হয়েছে। লেনদেনটি আলাদাভাবে যাচাই করুন।"
-                              if readings else "রসিদে পড়ার মতো লেখা পাওয়া যায়নি।"),
+            "bangla_speech": bangla_speech,
         }
 
     def extract_document(self, image_bytes):

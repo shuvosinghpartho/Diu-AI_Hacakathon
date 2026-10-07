@@ -72,7 +72,8 @@ node tests/number_scanner_ui.test.cjs
 
 **VisionPay Terminal** is a cutting-edge financial image-analysis application. 
 - **Mobile Number, Document, and Receipt Text Extraction** runs locally through EasyOCR. 
-- **Fake Note Screener and Cash Counting** are fully powered by a custom-trained local **Keras Neural Network (my_model.h5)**. This bypasses the need for paid APIs, prevents server timeouts, and ensures real-time offline-capable currency detection directly on the server.
+- **Cash Counting** runs locally using horizontal layer detection adapted from `1ip_version.py`; it needs one clear side photo of a same-denomination stack. The optional denomination selector converts the detected note count into a total amount.
+- **Fake Note Screening** uses the local model and is separate from stack counting.
 - **Dynamic Dashboard & Analytics** are powered by MongoDB, visualizing live scan histories and system metrics.
 
 A dedicated **Bangla Voice Assistant** is integrated to guide users, making the platform accessible and intuitive for everyday financial screening in Bangladesh.
@@ -81,7 +82,7 @@ A dedicated **Bangla Voice Assistant** is integrated to guide users, making the 
 
 ## 🚀 Features
 
-- 💵 **Smart Cash Counting:** Analyzes an image of multiple currency notes and calculates the total amount instantly.
+- 💵 **Single-Image Stack Counting:** Counts exposed banknote layers from a clear side image and calculates an amount when the denomination is selected.
 - 🕵️ **Fake Note Detection:** Scans Bangladeshi Taka (BDT) notes for anomalies, security threads, and watermarks to detect counterfeit currency.
 - 📄 **Document OCR:** Extracts supported fields from NID and passport images without claiming authenticity.
 - 🧾 **Receipt OCR:** Extracts structured payment fields without claiming payment or screenshot authenticity.

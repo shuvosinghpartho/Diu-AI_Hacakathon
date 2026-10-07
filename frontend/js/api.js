@@ -21,11 +21,18 @@ const VisionPayApi = {
 
     const formData = new FormData();
     formData.append('file', imageBlob, filename || 'capture.jpg');
+    if (moduleKey === 'cash_count') {
+      const denomination = document.getElementById('cashDenomination')?.value || '0';
+      formData.append('denomination', denomination);
+    }
 
     let response;
     try {
       response = await fetch(`${this.baseUrl}${endpoint}`, {
         method: 'POST',
+        headers: {
+          'X-API-Key': 'vp-live-2026-secure-key'
+        },
         body: formData
       });
     } catch (error) {
@@ -46,7 +53,9 @@ const VisionPayApi = {
 
   async getDashboardStats() {
     try {
-      const response = await fetch(`${this.baseUrl}${this.endpoints.dashboard_stats}`);
+      const response = await fetch(`${this.baseUrl}${this.endpoints.dashboard_stats}`, {
+        headers: { 'X-API-Key': 'vp-live-2026-secure-key' }
+      });
       if (!response.ok) return null;
       return await response.json();
     } catch (e) {

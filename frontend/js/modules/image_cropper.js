@@ -132,16 +132,23 @@ const ImageCropper = {
   },
 
   async getCroppedBlob() {
-    if (!this.active || !this.sourceFile || !this.image || !this.selection) return this.sourceFile;
-    const source = this.calculateSourceRect(this.image.naturalWidth, this.image.naturalHeight,
+    if (!this.active || !this.sourceFile || !this.image) return this.sourceFile;
+    const selectedSource = this.calculateSourceRect(this.image.naturalWidth, this.image.naturalHeight,
       this.canvas.width, this.canvas.height, this.selection);
-    if (!source) return this.sourceFile;
+    const source = selectedSource || {
+      x: 0,
+      y: 0,
+      width: this.image.naturalWidth,
+      height: this.image.naturalHeight
+    };
+    const maxWidth = 1536;
+    const scale = Math.min(1, maxWidth / source.width);
     const output = document.createElement('canvas');
-    output.width = source.width;
-    output.height = source.height;
+    output.width = Math.max(1, Math.round(source.width * scale));
+    output.height = Math.max(1, Math.round(source.height * scale));
     output.getContext('2d').drawImage(this.image, source.x, source.y, source.width, source.height,
-      0, 0, source.width, source.height);
+      0, 0, output.width, output.height);
     return new Promise((resolve, reject) => output.toBlob(
-      blob => blob ? resolve(blob) : reject(new Error('Could not crop the image.')), 'image/jpeg', .95));
+      blob => blob ? resolve(blob) : reject(new Error('Could not crop the image.')), 'image/jpeg', .88));
   }
 };

@@ -6,7 +6,7 @@ const FieldExtractionUI = {
     date_time: 'Date and time', sender: 'Sender', receiver: 'Receiver',
     reference: 'Reference', transaction_type: 'Transaction type',
     counterparty_name: 'Person / store / bank', agent_number: 'Agent number',
-    bank_name: 'Bank'
+    bank_name: 'Bank', expected_charge: 'Expected charge'
   },
 
   render(container, data, kind) {

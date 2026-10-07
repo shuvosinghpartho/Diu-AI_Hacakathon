@@ -21,14 +21,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from fastapi import Depends
+from .auth import get_api_key
 from .routes.dashboard import router as dashboard_router
 
-app.include_router(cash_router)
-app.include_router(fake_currency_router)
-app.include_router(ocr_router)
-app.include_router(doc_router)
-app.include_router(receipt_router)
-app.include_router(dashboard_router)
+# Secure all API routes with API Key authentication
+app.include_router(cash_router, dependencies=[Depends(get_api_key)])
+app.include_router(fake_currency_router, dependencies=[Depends(get_api_key)])
+app.include_router(ocr_router, dependencies=[Depends(get_api_key)])
+app.include_router(doc_router, dependencies=[Depends(get_api_key)])
+app.include_router(receipt_router, dependencies=[Depends(get_api_key)])
+app.include_router(dashboard_router, dependencies=[Depends(get_api_key)])
 
 from .database import db, MONGODB_URL
 from motor.motor_asyncio import AsyncIOMotorClient

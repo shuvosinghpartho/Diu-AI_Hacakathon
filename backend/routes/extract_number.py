@@ -2,7 +2,7 @@ import asyncio
 import logging
 from datetime import datetime, timezone
 from typing import List
-from fastapi import APIRouter, File, UploadFile, HTTPException, Depends
+from fastapi import APIRouter, File, UploadFile, HTTPException, Depends, Request
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -33,7 +33,11 @@ class NumberOCRResponse(BaseModel):
 
 
 @router.post("/extract-number", response_model=NumberOCRResponse)
-async def extract_mobile_number(file: UploadFile = File(...), db: AsyncIOMotorDatabase = Depends(get_database)):
+async def extract_mobile_number(
+    request: Request,
+    file: UploadFile = File(...), 
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
     if not (file.content_type or "").startswith("image/"):
         raise HTTPException(status_code=400, detail="Invalid file type. Image required.")
     image_bytes = await file.read(MAX_UPLOAD_BYTES + 1)
@@ -53,4 +57,13 @@ async def extract_mobile_number(file: UploadFile = File(...), db: AsyncIOMotorDa
         }), timeout=1.5)
     except Exception:
         logger.warning("Could not persist number OCR scan history")
+        
+    from ..audit_logger import log_audit_action
+    asyncio.create_task(log_audit_action(
+        db=db, 
+        request=request, 
+        action="OCR_EXTRACT_NUMBER", 
+        details={"found": response.found, "carrier": response.carrier}
+    ))
+    
     return response

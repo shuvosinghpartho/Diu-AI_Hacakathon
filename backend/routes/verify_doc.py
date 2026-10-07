@@ -44,10 +44,20 @@ async def verify_transaction_document(file: UploadFile = File(...), db: AsyncIOM
     except OCREngineError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     response = DocVerifyResponse(success=True, **result)
+    
+    # Human in the Loop (HITL) Oversight trigger
+    requires_human_review = response.confidence < 0.85
+    if requires_human_review:
+        logger.info(f"HITL Triggered for doc verify due to low confidence ({response.confidence})")
+        
     try:
+        from ..utils.privacy import redact_pii
+        secure_result = redact_pii(response.model_dump())
+        secure_result["requires_human_review"] = requires_human_review
+        
         await asyncio.wait_for(db.scan_history.insert_one({
             "module": "doc_ocr", "filename": file.filename,
-            "created_at": datetime.now(timezone.utc), "result": response.model_dump(),
+            "created_at": datetime.now(timezone.utc), "result": secure_result,
         }), timeout=1.5)
     except Exception:
         logger.warning("Could not persist document OCR history")

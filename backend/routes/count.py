@@ -1,11 +1,16 @@
-from fastapi import APIRouter, File, UploadFile, HTTPException, Depends
+import asyncio
+import logging
+
+from fastapi import APIRouter, File, Form, UploadFile, HTTPException, Depends
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from typing import List, Optional
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from ..database import get_database
-from ..services.gemini_service import gemini_service
+from ..services.stack_counter_service import stack_counter_service
 
 router = APIRouter(prefix="/api/v1/cash", tags=["Cash Counter"])
+logger = logging.getLogger(__name__)
 
 class CurrencyBreakdown(BaseModel):
     note: str
@@ -29,39 +34,75 @@ class CashCountResponse(BaseModel):
     breakdown: List[CurrencyBreakdown]
     detections: Optional[List[DetectionBox]] = []
     bangla_speech: str
+    stack_depth_px: float
+    layer_pitch_px: float
+    analysis_width: int
 
 @router.post("/count", response_model=CashCountResponse)
-async def count_currency(file: UploadFile = File(...), db: AsyncIOMotorDatabase = Depends(get_database)):
+async def count_currency(
+    file: UploadFile = File(...),
+    denomination: int = Form(0),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
     if not (file.content_type or "").startswith("image/"):
         raise HTTPException(status_code=400, detail="Invalid file type. Image required.")
-        
-    image_bytes = await file.read()
 
-    # Process image dynamically using Gemini
+    allowed_denominations = {0, 10, 20, 50, 100, 200, 500, 1000}
+    if denomination not in allowed_denominations:
+        raise HTTPException(status_code=400, detail="Unsupported BDT denomination.")
+
+    image_bytes = await file.read()
+    if not image_bytes:
+        raise HTTPException(status_code=400, detail="The uploaded image is empty.")
+    if len(image_bytes) > 15 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Image must be 15 MB or smaller.")
+
     try:
-        analysis_result = gemini_service.analyze_image(image_bytes, "cash_count")
+        result = await run_in_threadpool(
+            stack_counter_service.analyze_image,
+            image_bytes,
+        )
     except ValueError as exc:
-        raise HTTPException(status_code=503, detail="Cash counting is unavailable: Gemini is not configured.") from exc
-    if analysis_result.get("verdict") == "ERROR":
-        raise HTTPException(status_code=502, detail="Cash counting provider failed. Try again later.")
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    total_amount = result.count * denomination
+    note_label = f"৳{denomination}" if denomination else "Stack"
+    speech = (
+        f"মোট {result.count} টি নোট। মোট {total_amount} টাকা।"
+        if denomination
+        else f"মোট {result.count} টি নোট গণনা করা হয়েছে।"
+    )
 
     response = CashCountResponse(
         success=True,
-        total_notes=analysis_result.get("total_notes", 0),
-        total_amount=analysis_result.get("total_amount", 0),
-        confidence=analysis_result.get("confidence", 0.99),
-        breakdown=analysis_result.get("breakdown", []),
-        detections=analysis_result.get("detections", []),
-        bangla_speech=analysis_result.get("bangla_speech", "")
+        total_notes=result.count,
+        total_amount=total_amount,
+        confidence=result.evidence,
+        breakdown=[CurrencyBreakdown(
+            note=note_label,
+            count=result.count,
+            subtotal=total_amount,
+            color="#4F46E5",
+        )],
+        detections=[],
+        bangla_speech=speech,
+        stack_depth_px=result.stack_depth_px,
+        layer_pitch_px=result.layer_pitch_px,
+        analysis_width=result.analysis_width,
     )
 
     try:
-        await db.scan_history.insert_one({
-            "module": "cash_count",
-            "filename": file.filename,
-            "result": response.dict()
-        })
-    except Exception as e:
-        print("DB Error:", e)
+        await asyncio.wait_for(
+            db.scan_history.insert_one({
+                "module": "cash_count",
+                "filename": file.filename,
+                "result": response.dict(),
+            }),
+            timeout=0.5,
+        )
+    except Exception:
+        logger.warning("Could not persist cash-count scan history")
 
     return response
