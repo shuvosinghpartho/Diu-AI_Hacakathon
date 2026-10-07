@@ -1,5 +1,5 @@
 const VisionPayApi = {
-  baseUrl: window.VISIONPAY_API_BASE_URL || '',
+  baseUrl: window.VISIONPAY_API_BASE_URL || 'http://127.0.0.1:8000',
 
   endpoints: {
     cash_count: '/api/v1/cash/count',

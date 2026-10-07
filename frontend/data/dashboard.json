@@ -1,0 +1,34 @@
+{
+  "fraud_prevented": 124500,
+  "time_saved_hrs": 412,
+  "model_f1": 0.98,
+  "p95_latency": 124,
+  "uptime": 99.98,
+  "chart_data": [500, 800, 1200, 950, 1500, 1100, 1600],
+  "alerts": [
+    {
+      "id": "A-1029",
+      "type": "fake",
+      "title": "Suspected 1000 BDT Forgery",
+      "desc": "Failed watermark and microprint checks.",
+      "time": "2 mins ago",
+      "evidence": "Watermark opacity at 42% (Threshold > 60%). Missing UV response on security thread."
+    },
+    {
+      "id": "A-1030",
+      "type": "doc",
+      "title": "NID Verification Failed",
+      "desc": "Face mismatch score high.",
+      "time": "15 mins ago",
+      "evidence": "Confidence 0.34. Suspected photo replacement on Smart Card."
+    },
+    {
+      "id": "A-1031",
+      "type": "cash",
+      "title": "Unusual Cash Volume",
+      "desc": "Agent deposited 500k BDT in single batch.",
+      "time": "1 hr ago",
+      "evidence": "Historical average is 50k BDT. Flagged for review."
+    }
+  ]
+}

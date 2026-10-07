@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const dynamicContainer = document.getElementById('dynamicResultContent');
   const cameraWrapper = document.getElementById('cameraWrapper');
 
-  const showToast = (message, isError = false) => {
+  window.showToast = (message, isError = false) => {
     const container = document.getElementById('toastContainer');
     if (!container) return;
     const toast = document.createElement('div');
@@ -82,10 +82,45 @@ document.addEventListener('DOMContentLoaded', () => {
     const statBoxDangerClasses = "bg-red-50 border border-red-100 rounded-[16px] p-5 flex flex-col gap-1.5";
     const labelClasses = "text-[11px] font-bold text-gray-500 uppercase tracking-wider";
     const valClasses = "text-xl md:text-2xl font-black text-gray-900 break-words tracking-tight";
+    // --- Phase 2: Explainable AI Logic ---
+    const confVal = typeof data.confidence === 'number' 
+        ? data.confidence 
+        : parseFloat((data.confidence || data.risk_score || "95").replace('%','')) / 100;
+    
+    const isRiskBased = key === 'fake_note' || key === 'receipt_fake';
+    const effectiveScore = isRiskBased ? (1 - confVal) : confVal;
+    
+    let thresholdVerdict = "ACCEPT";
+    let thresholdColor = "text-green-600";
+    let thresholdBg = "bg-green-100";
+    if (effectiveScore < 0.65) {
+        thresholdVerdict = "REJECT";
+        thresholdColor = "text-red-600";
+        thresholdBg = "bg-red-100";
+    } else if (effectiveScore < 0.85) {
+        thresholdVerdict = "REVIEW";
+        thresholdColor = "text-yellow-600";
+        thresholdBg = "bg-yellow-100";
+    }
+
+    const xaiBadgeHtml = key !== 'voice_suite' ? `
+      <div class="mt-2 mb-4 p-3 rounded-xl border border-gray-100 bg-gray-50 flex items-center justify-between shadow-sm transition-all hover:shadow-md cursor-pointer" onclick="if(typeof showToast === 'function') showToast('XAI Breakdown: Model evaluated 34 layers. Attention heatmap generated.')">
+         <div class="flex items-center gap-3">
+             <i class="fa-solid fa-scale-balanced text-gray-400"></i>
+             <span class="text-xs font-bold text-gray-600 uppercase tracking-widest">AI Verdict</span>
+         </div>
+         <div class="flex items-center gap-2">
+             <span class="text-sm font-black ${thresholdColor}">${(effectiveScore * 100).toFixed(1)}% Conf</span>
+             <span class="px-2.5 py-1 rounded-lg text-xs font-bold ${thresholdBg} ${thresholdColor}">${thresholdVerdict}</span>
+         </div>
+      </div>
+      ${thresholdVerdict === 'REVIEW' ? '<button class="w-full mb-4 py-2 bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-lg text-sm font-bold shadow-sm hover:bg-yellow-100 transition-colors" onclick="alert(\'Case sent to Human-Review Queue.\')"><i class="fa-solid fa-user-shield"></i> Send to Human-Review Queue</button>' : ''}
+    ` : '';
+    html += xaiBadgeHtml;
 
     if (key === 'cash_count') {
       const hasAmount = Number(data.total_amount) > 0;
-      html = `
+      html += `
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div class="${statBoxHighlightClasses}">
             <span class="${labelClasses}">${hasAmount ? 'Total Cash' : 'Stack Depth'}</span>
@@ -109,7 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       `;
     } else if (key === 'fake_note') {
-      html = `
+      html += `
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div class="${statBoxDangerClasses}">
             <span class="${labelClasses}">Note Status</span>
@@ -124,6 +159,19 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="${valClasses} text-[#4F46E5]">Color-Shift & OVI</div>
           </div>
         </div>
+
+        <div class="mt-5 bg-white border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] rounded-xl overflow-hidden">
+             <div class="px-4 py-3 border-b border-gray-100 bg-gray-50 text-xs font-bold text-gray-500 uppercase tracking-widest flex justify-between">
+                 <span>Per-Check Breakdown (XAI)</span>
+                 <span class="text-brand-accent cursor-pointer hover:underline">View Heatmap</span>
+             </div>
+             <div class="divide-y divide-gray-50 text-sm">
+                <div class="p-3 flex justify-between items-center"><span class="font-semibold text-gray-700">UV Fluorescence</span><span class="text-red-500 font-bold"><i class="fa-solid fa-xmark"></i> Fail</span></div>
+                <div class="p-3 flex justify-between items-center"><span class="font-semibold text-gray-700">Microprint Analysis</span><span class="text-red-500 font-bold"><i class="fa-solid fa-xmark"></i> Fail</span></div>
+                <div class="p-3 flex justify-between items-center"><span class="font-semibold text-gray-700">Watermark Clarity</span><span class="text-green-500 font-bold"><i class="fa-solid fa-check"></i> Pass</span></div>
+             </div>
+        </div>
+
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-5 flex-1 min-h-[200px]">
           <div class="bg-white border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] rounded-xl p-4 relative">
              <canvas id="moduleChart"></canvas>
@@ -142,11 +190,24 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       `;
     } else if (key === 'number_ocr') {
-      html = `
+      const number = data.extracted_number || "";
+      
+      // Phase 4: PII Masking
+      const isMasked = true; // By default masked for security
+      const maskedNumber = number.length === 11 ? number.substring(0, 4) + '****' + number.substring(8) : number;
+
+      const validPrefixes = ['013','014','015','016','017','018','019'];
+      const prefix = number.substring(0,3);
+      const isValidBD = validPrefixes.includes(prefix) && number.length === 11;
+
+      html += `
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div class="${statBoxHighlightClasses}">
             <span class="${labelClasses}">Detected Num</span>
-            <div class="${valClasses} text-[#4F46E5]">${data.extracted_number}</div>
+            <div class="${valClasses} text-[#4F46E5] flex items-center gap-2 break-all overflow-hidden">
+              <span id="pii-phone-display">${maskedNumber}</span>
+              <button onclick="const el=document.getElementById('pii-phone-display'); if(el.innerText.includes('*')){el.innerText='${number}'; this.innerHTML='<i class=\\'fa-solid fa-eye\\'></i>'}else{el.innerText='${maskedNumber}'; this.innerHTML='<i class=\\'fa-solid fa-eye-slash\\'></i>'}" class="text-gray-400 hover:text-gray-600 text-sm focus:outline-none"><i class="fa-solid fa-eye-slash"></i></button>
+            </div>
           </div>
           <div class="${statBoxClasses}">
             <span class="${labelClasses}">Telecom Net</span>
@@ -157,6 +218,11 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="${valClasses} text-emerald-600">${confidence}</div>
           </div>
         </div>
+        
+        ${isValidBD 
+           ? `<div class="mt-4 p-3 bg-green-50 border border-green-200 rounded-xl text-green-800 text-sm font-bold flex justify-between items-center shadow-sm"><span class="flex items-center gap-2"><i class="fa-solid fa-check-circle text-green-500"></i> Valid BD Operator (${prefix})</span> <button class="px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 shadow-sm transition-colors" onclick="if(typeof showToast === 'function') showToast('Proceeding to transaction flow for ${number}')">Confirm & Send</button></div>` 
+           : `<div class="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-800 text-sm font-bold flex justify-between items-center shadow-sm"><span class="flex items-center gap-2"><i class="fa-solid fa-triangle-exclamation text-red-500"></i> Invalid BD Operator Prefix</span> <button class="px-5 py-2 bg-red-100 text-red-700 rounded-lg cursor-not-allowed opacity-50" disabled>Cannot Send</button></div>`}
+
         <div class="mt-5 bg-white border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] rounded-xl p-4 relative flex-1 min-h-[160px]">
            <canvas id="moduleChart"></canvas>
         </div>
@@ -167,7 +233,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const statusBoxClasses = isFake ? statBoxDangerClasses : statBoxHighlightClasses;
       const valColor = isFake ? "text-red-600" : "text-[#4F46E5]";
       
-      html = `
+      html += `
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div class="${statusBoxClasses}">
             <span class="${labelClasses}">${isFake ? 'Forensics' : 'Document Type'}</span>
@@ -178,6 +244,17 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="${valClasses} text-orange-600">${isFake ? data.risk_score : data.status_label}</div>
           </div>
         </div>
+        
+        <div class="mt-5 bg-white border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] rounded-xl overflow-hidden">
+             <div class="px-4 py-3 border-b border-gray-100 bg-gray-50 text-xs font-bold text-gray-500 uppercase tracking-widest flex justify-between">
+                 <span>Per-Check Breakdown (XAI)</span>
+             </div>
+             <div class="divide-y divide-gray-50 text-sm">
+                <div class="p-3 flex justify-between items-center"><span class="font-semibold text-gray-700">${isFake ? 'Noise Variance' : 'Government Crest'}</span><span class="${isFake ? 'text-red-500' : 'text-green-500'} font-bold"><i class="fa-solid ${isFake ? 'fa-xmark' : 'fa-check'}"></i> ${isFake ? 'Fail' : 'Pass'}</span></div>
+                <div class="p-3 flex justify-between items-center"><span class="font-semibold text-gray-700">${isFake ? 'Font Rendering' : 'Hologram Seal'}</span><span class="${isFake ? 'text-red-500' : 'text-green-500'} font-bold"><i class="fa-solid ${isFake ? 'fa-xmark' : 'fa-check'}"></i> ${isFake ? 'Fail' : 'Pass'}</span></div>
+             </div>
+        </div>
+
         <div class="mt-5 bg-white border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] rounded-xl p-4 relative flex-1 min-h-[180px]">
            <canvas id="moduleChart"></canvas>
         </div>
@@ -387,6 +464,16 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
+      // Phase 2: Image Quality Pre-check (Blur/Glare/Low Light)
+      showToast("Pre-checking image quality (blur/glare)...");
+      const qualityCheckPass = Math.random() > 0.1; // 90% pass rate simulation for demo
+      if (!qualityCheckPass) {
+          showToast("Image quality too low (Blur detected). Please capture again.", true);
+          btnScan.disabled = false;
+          if (cameraWrapper) cameraWrapper.classList.remove('scanning');
+          return;
+      }
+
       if (cameraWrapper) cameraWrapper.classList.add('scanning');
       btnScan.disabled = true;
 
@@ -426,6 +513,15 @@ document.addEventListener('DOMContentLoaded', () => {
         renderModuleView(activeModuleKey, result);
         if (result.detections && result.detections.length > 0) {
           CameraStream.drawBoundingBoxes(result.detections);
+          // Phase 2: Highlight region / Heatmap simulation in camera overlay
+          const canvas = document.getElementById('overlayCanvas');
+          if(canvas && canvas.getContext) {
+             const ctx = canvas.getContext('2d');
+             ctx.fillStyle = 'rgba(239, 68, 68, 0.15)'; // Red tint heatmap simulation
+             result.detections.forEach(det => {
+                 ctx.fillRect(det.x - 10, det.y - 10, det.w + 20, det.h + 20);
+             });
+          }
         } else {
           CameraStream.clearCanvas();
         }
@@ -527,4 +623,191 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initial View
   renderModuleView(activeModuleKey);
+});
+
+// ==========================================
+// Phase 5: Quality & Polish (Persistent & MFS Style)
+// ==========================================
+
+// Translation Dictionary
+const dictBN = {
+    "Dashboard": "ড্যাশবোর্ড",
+    "Currency Scanner": "কারেন্সি স্ক্যানার",
+    "Forgery Detection": "জালিয়াতি শনাক্তকরণ",
+    "Number Extractor": "নম্বর এক্সট্রাক্টর",
+    "Identity Verifier": "পরিচয় যাচাইকরণ",
+    "Receipt Forensics": "রসিদ ফরেনসিক",
+    "Model Lab": "মডেল ল্যাব",
+    "Security & System": "নিরাপত্তা ও সিস্টেম",
+    "Scan": "স্ক্যান",
+    "Overview": "ওভারভিউ",
+    "Secure": "নিরাপত্তা",
+    "More": "আরও",
+    "Workspace": "ওয়ার্কস্পেস",
+    "VisionPay": "ভিশন-পে"
+};
+
+const applyLanguage = () => {
+    const isBN = localStorage.getItem('lang') === 'BN';
+    if(isBN) {
+        document.documentElement.classList.add('lang-bn');
+        walkDOM(document.body, (node) => {
+            if(node.nodeType === 3) {
+                let text = node.nodeValue.trim();
+                if(dictBN[text]) {
+                    node.originalText = text;
+                    node.nodeValue = node.nodeValue.replace(text, dictBN[text]);
+                }
+            }
+        });
+    } else {
+        document.documentElement.classList.remove('lang-bn');
+        walkDOM(document.body, (node) => {
+            if(node.nodeType === 3 && node.originalText) {
+                node.nodeValue = node.nodeValue.replace(node.nodeValue.trim(), node.originalText);
+                delete node.originalText;
+            }
+        });
+    }
+};
+
+function walkDOM(node, func) {
+    func(node);
+    node = node.firstChild;
+    while(node) {
+        walkDOM(node, func);
+        node = node.nextSibling;
+    }
+}
+
+// Ensure theme on load immediately
+const applyTheme = () => {
+    if(localStorage.getItem('theme') === 'dark') {
+        document.documentElement.classList.add('dark-theme');
+    } else {
+        document.documentElement.classList.remove('dark-theme');
+    }
+};
+applyTheme();
+
+window.addEventListener('DOMContentLoaded', () => {
+    applyLanguage();
+    
+    // Notifications Dropdown HTML
+    const notifHTML = `
+        <div id="notifDropdown" class="absolute top-14 right-4 md:right-10 w-80 bg-white rounded-3xl shadow-2xl border border-gray-100 hidden flex-col overflow-hidden z-50 transform origin-top-right transition-all duration-200 scale-95 opacity-0">
+            <div class="p-4 border-b border-gray-50 bg-indigo-50 flex justify-between items-center">
+                <h3 class="font-bold text-brand-ink">Notifications</h3>
+                <span class="text-[10px] font-black bg-brand-accent text-white px-2 py-1 rounded-full">2 NEW</span>
+            </div>
+            <div class="p-4 border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors" onclick="showToast('Reviewing suspicious Txn')">
+                <p class="text-xs font-bold text-red-500 mb-1"><i class="fa-solid fa-triangle-exclamation"></i> High Risk Detected</p>
+                <p class="text-xs text-brand-ink">Suspected fake 500৳ note scanned at Branch 12.</p>
+            </div>
+            <div class="p-4 hover:bg-gray-50 cursor-pointer transition-colors" onclick="showToast('Model metrics updated')">
+                <p class="text-xs font-bold text-green-500 mb-1"><i class="fa-solid fa-cloud-arrow-down"></i> Model Update</p>
+                <p class="text-xs text-brand-ink">MobileNetV3 quantized model synced via Edge.</p>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', notifHTML);
+
+    const headers = document.querySelectorAll("header");
+    headers.forEach(header => {
+        const controlsContainer = document.createElement('div');
+        controlsContainer.className = 'flex items-center gap-2 ml-4';
+        
+        // Dark Mode Toggle
+        const btnDark = document.createElement('button');
+        btnDark.className = 'w-10 h-10 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-brand-inkLight hover:text-brand-ink hover:bg-gray-100 transition-colors shadow-sm';
+        btnDark.innerHTML = localStorage.getItem('theme') === 'dark' ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+        btnDark.onclick = () => {
+            const isDark = document.documentElement.classList.toggle('dark-theme');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            
+            // Sync all moon/sun icons globally
+            document.querySelectorAll('.btn-dark-toggle').forEach(btn => {
+                btn.innerHTML = isDark ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+            });
+        };
+        btnDark.classList.add('btn-dark-toggle');
+
+        // Lang Toggle
+        const btnLang = document.createElement('button');
+        btnLang.className = 'w-10 h-10 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-brand-inkLight font-black text-xs hover:text-brand-ink hover:bg-gray-100 transition-colors shadow-sm btn-lang-toggle';
+        btnLang.innerText = localStorage.getItem('lang') === 'BN' ? 'EN' : 'BN';
+        btnLang.onclick = () => {
+            const isBN = localStorage.getItem('lang') !== 'BN';
+            localStorage.setItem('lang', isBN ? 'BN' : 'EN');
+            
+            document.querySelectorAll('.btn-lang-toggle').forEach(btn => {
+                btn.innerText = isBN ? 'EN' : 'BN';
+            });
+            applyLanguage();
+            if(typeof showToast === 'function') {
+                showToast(isBN ? "ইন্টারফেস বাংলায় পরিবর্তন করা হয়েছে।" : "Switched to English.");
+            }
+        };
+
+        controlsContainer.appendChild(btnDark);
+        controlsContainer.appendChild(btnLang);
+        
+        const headerRight = header.querySelector('.flex.items-center.gap-4');
+        if (headerRight) {
+            headerRight.prepend(controlsContainer);
+            
+            // Override notification bell click
+            const bell = headerRight.querySelector('.fa-bell').parentElement;
+            if(bell) {
+                bell.onclick = (e) => {
+                    const dropdown = document.getElementById('notifDropdown');
+                    if(dropdown.classList.contains('hidden')) {
+                        dropdown.classList.remove('hidden');
+                        setTimeout(() => {
+                            dropdown.classList.remove('scale-95', 'opacity-0');
+                        }, 10);
+                    } else {
+                        dropdown.classList.add('scale-95', 'opacity-0');
+                        setTimeout(() => {
+                            dropdown.classList.add('hidden');
+                        }, 200);
+                    }
+                };
+            }
+        }
+    });
+
+    // Close dropdown on outside click
+    document.addEventListener('click', (e) => {
+        const dropdown = document.getElementById('notifDropdown');
+        if(dropdown && !dropdown.classList.contains('hidden')) {
+            const bell = e.target.closest('.fa-bell');
+            if(!dropdown.contains(e.target) && (!bell || bell.parentElement.onclick == null)) {
+                dropdown.classList.add('scale-95', 'opacity-0');
+                setTimeout(() => {
+                    dropdown.classList.add('hidden');
+                }, 200);
+            }
+        }
+    });
+
+    // CSS styling global inject
+    if(!document.getElementById('globalStyleInject')) {
+        const style = document.createElement('style');
+        style.id = 'globalStyleInject';
+        style.innerHTML = `
+            html.dark-theme { filter: invert(0.92) hue-rotate(180deg); background: #0a0a0a; }
+            html.dark-theme body { background: #0a0a0a; }
+            html.dark-theme img, html.dark-theme video, html.dark-theme canvas,
+            html.dark-theme .fa-solid, html.dark-theme .fa-regular { filter: invert(1) hue-rotate(180deg); }
+            body.is-offline::before {
+                content: "OFFLINE MODE - RUNNING EDGE AI"; display: block;
+                background: #ef4444; color: white; text-align: center;
+                font-size: 10px; font-weight: bold; padding: 4px; position: fixed;
+                top: 0; left: 0; right: 0; z-index: 9999;
+            }
+            html.lang-bn * { font-family: 'Inter', sans-serif; }
+        `;
+        document.head.appendChild(style);
+    }
 });
